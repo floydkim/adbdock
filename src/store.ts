@@ -10,6 +10,7 @@ export interface SavedDevice {
   alias?: string;
   serials: string[];
   kind: string;
+  wirelessServices?: string[];
 }
 
 export interface Binding {
@@ -37,7 +38,8 @@ export async function readConfig(): Promise<Config> {
     const value = JSON.parse(await readFile(configPath, 'utf8'));
     if (value.schemaVersion !== 1 || !Array.isArray(value.devices) || !Array.isArray(value.bindings)
       || !value.devices.every((d: SavedDevice) => d && typeof d.id === 'string' && typeof d.kind === 'string'
-        && (d.alias === undefined || typeof d.alias === 'string') && Array.isArray(d.serials) && d.serials.every(s => typeof s === 'string'))
+        && (d.alias === undefined || typeof d.alias === 'string') && Array.isArray(d.serials) && d.serials.every(s => typeof s === 'string')
+        && (d.wirelessServices === undefined || (Array.isArray(d.wirelessServices) && d.wirelessServices.every(s => typeof s === 'string'))))
       || !value.bindings.every((b: Binding) => b && typeof b.deviceId === 'string' && isPort(b.devicePort) && isPort(b.metroPort)
         && (b.managedPort === undefined || isPort(b.managedPort)))) {
       throw new Error('Unsupported config structure');

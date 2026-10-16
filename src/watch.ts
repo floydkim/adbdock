@@ -6,6 +6,8 @@ import { applyBinding, problem } from './link.js';
 import { home, saveConfig, withConfig } from './store.js';
 import { result } from './output.js';
 import type { Problem } from './output.js';
+import { reconnectKnown } from './wireless.js';
+import type { WirelessRetries } from './wireless.js';
 
 export async function logEvent(value: unknown): Promise<void> {
   await mkdir(home, { recursive: true, mode: 0o700 });
@@ -18,14 +20,26 @@ export async function logEvent(value: unknown): Promise<void> {
 
 export async function watchLoop(interval: number, signal: AbortSignal): Promise<void> {
   const retries = new Map<string, { failures: number; next: number; signature: string }>();
+  const wirelessRetries: WirelessRetries = new Map();
   let lastEvent = '';
   while (!signal.aborted) {
     try {
       const output = await withConfig(async config => {
         const before = JSON.stringify(config);
-        const live = await devices(config);
+        let live = await devices(config);
         const errors: Problem[] = [];
         const data: unknown[] = [];
+        try {
+          const wireless = await reconnectKnown(config, live, wirelessRetries, interval, signal);
+          errors.push(...wireless.errors);
+          if (wireless.attempted && !signal.aborted) live = await devices(config);
+        } catch (error) { errors.push(problem(error, 'wireless-discovery')); }
+        for (const device of live) {
+          if (config.devices.some(d => d.id === device.id)) {
+            remember(config, device);
+            if (device.state === 'device') wirelessRetries.delete(device.id);
+          }
+        }
         for (const b of config.bindings) {
           if (signal.aborted) break;
           const device = live.find(d => d.id === b.deviceId);

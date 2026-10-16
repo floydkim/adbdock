@@ -11,12 +11,19 @@ if (args[0] === 'devices') {
 } else if (args[0] === 'mdns') {
   console.log(state.mdns ?? 'List of discovered mdns services');
 } else if (args[0] === 'connect') {
+  const added = state.connectDevices?.[args[1]];
+  if (added) {
+    state.devices.push(added);
+    delete state.connectDevices[args[1]];
+    writeFileSync(statePath, JSON.stringify(state));
+  }
   console.log(`connected to ${args[1]}`);
 } else if (args[0] === '-s') {
   const device = state.devices.find(d => d.serial === args[1]);
   if (!device || device.state === 'offline') { console.error('device offline'); process.exit(1); }
   const command = args.slice(2);
   if (command.join(' ') === 'shell getprop ro.serialno') console.log(device.id ?? device.serial);
+  else if (command.join(' ') === 'shell getprop persist.adb.wifi.guid') console.log(device.guid ?? '');
   else if (command.join(' ') === 'emu avd name') console.log(`${device.avd ?? 'Pixel_API_35'}\nOK`);
   else if (command[0] === 'reverse') {
     device.reverse ??= {};

@@ -13,6 +13,7 @@ export interface Device extends Transport {
   id: string;
   alias?: string;
   transports: Transport[];
+  wirelessServices: string[];
 }
 
 export async function devices(config: Config): Promise<Device[]> {
@@ -27,6 +28,9 @@ export async function devices(config: Config): Promise<Device[]> {
   }
   const identified = await mapLimit(transports, async transport => {
     let id = config.devices.find(d => d.serials.includes(transport.serial))?.id ?? `transport:${transport.serial}`;
+    const wirelessServices: string[] = [];
+    const service = /^(.*)\._adb-tls-connect\._tcp\.?$/.exec(transport.serial)?.[1];
+    if (service) wirelessServices.push(service);
     if (transport.state === 'device') {
       try {
         if (transport.kind === 'emulator') {
@@ -37,8 +41,14 @@ export async function devices(config: Config): Promise<Device[]> {
           if (hardware && hardware !== 'unknown' && hardware !== '0123456789ABCDEF') id = `android:${hardware}`;
         }
       } catch { /* A listed transport can disconnect before identity lookup. */ }
+      if (transport.kind !== 'emulator') {
+        try {
+          const guid = (await checkedAdb(['-s', transport.serial, 'shell', 'getprop', 'persist.adb.wifi.guid'])).trim();
+          if (/^[a-zA-Z0-9_-]+$/.test(guid) && guid !== 'unknown') wirelessServices.push(`adb-${guid}`);
+        } catch { /* Wireless discovery is optional; identity lookup may still succeed. */ }
+      }
     }
-    return { ...transport, id };
+    return { ...transport, id, wirelessServices };
   });
   const grouped = new Map<string, Device>();
   for (const item of identified) {
@@ -47,10 +57,12 @@ export async function devices(config: Config): Promise<Device[]> {
     const id = ambiguous ? `transport:${item.serial}` : item.id;
     const previous = grouped.get(id);
     if (previous) {
+      const services = [...new Set([...previous.wirelessServices, ...item.wirelessServices])];
       previous.transports.push(item);
       if (item.state === 'device' && (previous.state !== 'device' || item.kind === 'usb')) {
         Object.assign(previous, item, { id });
       }
+      previous.wirelessServices = services;
     } else {
       grouped.set(id, { ...item, id, alias: config.devices.find(d => d.id === id)?.alias, transports: [item] });
     }
@@ -84,6 +96,9 @@ export function remember(config: Config, device: Device | SavedDevice): SavedDev
     config.devices.push(saved);
   }
   if ('transports' in device) saved.serials = [...new Set([...saved.serials, ...device.transports.map(t => t.serial)])];
+  if ('wirelessServices' in device && device.wirelessServices?.length) {
+    saved.wirelessServices = [...new Set([...(saved.wirelessServices ?? []), ...device.wirelessServices])];
+  }
   return saved;
 }
 

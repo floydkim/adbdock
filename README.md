@@ -82,3 +82,20 @@ a separate heartbeat lease; after a crash, allow about 10 seconds before restart
 Control uses a local Unix socket under an owner-only directory in `/tmp`, without
 sending signals to saved PIDs. `watch.log` in the config directory records state
 changes, rotating at approximately 1 MiB with one previous log retained.
+
+### Wireless recovery
+
+First pair and connect the device using Android Studio or `adb pair` / `adb connect`.
+Register its alias while online. adbdock remembers its TLS service name and, when
+available, `persist.adb.wifi.guid`. While watching, a disconnected remembered
+device can reconnect to the matching `_adb-tls-connect._tcp` service's current IP
+and port. This also works without a Metro mapping. Devices are identified again
+after connecting before a saved mapping is applied.
+
+Unknown services and pairing endpoints are ignored. Multiple matching endpoints,
+unavailable mDNS, missing identity information, or disabled wireless debugging
+require manual intervention. Legacy `adb tcpip` devices can be used while
+connected, but stale IP addresses are not automatically retried. The tool does
+not turn wireless debugging on or perform initial pairing.
+
+The service/GUID behavior follows the [Android ADB Wi-Fi architecture](https://android.googlesource.com/platform/packages/modules/adb/+/HEAD/docs/dev/adb_wifi.md).

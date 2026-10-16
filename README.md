@@ -2,7 +2,7 @@
 
 A multi-device ADB CLI with optional Metro connection recovery.
 
-Work in progress. Requires macOS, Node.js 22+, and `adb` on PATH.
+Requires macOS, Node.js 22+, and `adb` on PATH.
 
 ```sh
 npm ci
@@ -32,3 +32,33 @@ Host commands and interactive/streaming sessions are not supported by this runne
 
 Use `ADBDOCK_ADB` for a specific adb executable and `ADBDOCK_HOME` for a separate
 configuration directory. Installation and automated tests do not modify real devices.
+
+## Optional Metro connections
+
+```sh
+node dist/cli.js metro bind pixel --port 8081
+node dist/cli.js metro bind galaxy --port 8082
+node dist/cli.js metro bind emulator-5554 --port 8083 --device-port 8081
+node dist/cli.js status --json
+node dist/cli.js metro repair --all
+node dist/cli.js metro unbind galaxy
+```
+
+`--port` is the **Mac Metro port**. `--device-port` defaults to 8081. For example,
+Galaxy's `localhost:8081` can reach the Mac's Metro on 8082 without changing the app.
+The app must use `localhost:<device-port>`; adbdock does not rewrite the app's
+developer server settings or start Metro. Devices without a mapping require no Metro.
+
+Mappings are saved even if a remembered device is disconnected. `repair` applies
+them later. Existing external reverse rules are preserved unless `bind --replace`
+is explicit. `unbind` only removes a tunnel created by adbdock that still matches
+the last applied port. A matching pre-existing external rule is not adopted.
+When multiple mappings exist on one device, specify `--device-port` for unbind.
+
+`status` reports ADB state, reverse rules and the Mac's Metro `/status` separately.
+It cannot verify that the app uses the tunnel or that Fast Refresh works.
+
+JSON output uses `{schemaVersion, ok, data, errors}`. Exit codes: 0 success,
+1 operation/partial failure, 2 invalid arguments, 3 missing/ambiguous/unavailable
+device, 4 watcher control failure. A successful `status` query can include
+unhealthy devices. Errors do not cause arbitrary ADB commands to be retried.

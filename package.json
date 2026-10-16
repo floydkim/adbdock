@@ -1,0 +1,27 @@
+{
+  "name": "adbdock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A multi-device ADB CLI with optional Metro connection recovery",
+  "type": "module",
+  "bin": {
+    "adbdock": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  }
+}

@@ -16,6 +16,7 @@ export interface Result {
   ok: boolean;
   data: unknown;
   errors: Problem[];
+  watcher?: { pid: number; state: string } | null;
 }
 
 export function result(data: unknown, errors: Problem[] = []): Result {
@@ -27,6 +28,7 @@ export function print(value: Result, json: boolean): void {
     console.log(JSON.stringify(value));
     return;
   }
+  if (value.watcher !== undefined) console.log(`Watcher: ${value.watcher ? `${value.watcher.state} (pid ${value.watcher.pid})` : 'stopped'}`);
   if (typeof value.data === 'string') console.log(value.data);
   else if (Array.isArray(value.data)) {
     if (!value.data.length) console.log('No devices or entries.');

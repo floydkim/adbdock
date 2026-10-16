@@ -10,6 +10,16 @@ npm test
 node dist/cli.js --help
 ```
 
+To put the development checkout on PATH after building:
+
+```sh
+npm link
+adbdock devices
+```
+
+`npm unlink --global adbdock` removes that link. This repository is private in
+package.json to prevent accidental publication; no npm name reservation is implied.
+
 ## Devices and aliases
 
 ```sh
@@ -101,3 +111,15 @@ connected, but stale IP addresses are not automatically retried. The tool does
 not turn wireless debugging on or perform initial pairing.
 
 The service/GUID behavior follows the [Android ADB Wi-Fi architecture](https://android.googlesource.com/platform/packages/modules/adb/+/HEAD/docs/dev/adb_wifi.md).
+
+## Verification and limits
+
+Run `npm test` and `npm run typecheck`. See [validation record](docs/manual-validation.md)
+for the scenario coverage and pending device checks. One Android 16 emulator was
+used to verify alias lookup, port mapping, device-to-host HTTP and watcher recovery.
+Physical-device Wi-Fi and actual RN Fast Refresh stability remain unverified.
+
+Multiple instances of the same AVD have no unique persistent AVD identity. Exact
+serial selection remains available, but a mapping created in that ambiguous state
+is not migrated to another instance when one disappears. Use distinct AVDs for
+persistent mappings across restarts.

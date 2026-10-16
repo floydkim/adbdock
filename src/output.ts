@@ -28,6 +28,20 @@ export function print(value: Result, json: boolean): void {
     return;
   }
   if (typeof value.data === 'string') console.log(value.data);
+  else if (Array.isArray(value.data)) {
+    if (!value.data.length) console.log('No devices or entries.');
+    else if ('transportSerial' in value.data[0] && 'stdout' in value.data[0]) {
+      for (const entry of value.data) {
+        console.log(`[${entry.alias ?? entry.transportSerial}] exit=${entry.exitCode ?? 'unknown'}`);
+        if (entry.stdout) process.stdout.write(entry.stdout.endsWith('\n') ? entry.stdout : `${entry.stdout}\n`);
+        if (entry.stderr) process.stderr.write(entry.stderr.endsWith('\n') ? entry.stderr : `${entry.stderr}\n`);
+      }
+    } else if ('transports' in value.data[0]) {
+      const rows = [['ALIAS', 'DEVICE', 'CONNECTION', 'STATE', 'MODEL'], ...value.data.map(d => [d.alias ?? '-', d.serial, d.kind, d.state, d.model])];
+      const widths = rows[0]!.map((_: string, i: number) => Math.max(...rows.map(row => String(row[i]).length)));
+      for (const row of rows) console.log(row.map((cell: string, i: number) => String(cell).padEnd(widths[i]!)).join('  ').trimEnd());
+    } else console.log(JSON.stringify(value.data, null, 2));
+  }
   else if (value.data !== null) console.log(JSON.stringify(value.data, null, 2));
   for (const error of value.errors) console.error(`${error.code}: ${error.message}`);
 }

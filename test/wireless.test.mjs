@@ -52,3 +52,18 @@ test('duplicate emulator identities do not receive a saved AVD alias', async t =
   assert.notEqual(output.code, 0);
   assert.equal((await app.calls()).filter(c => c.includes('install')).length, 0);
 });
+
+test('exact emulator transports stay selectable when an AVD is running twice', async t => {
+  const app = await setup(t, [{ serial: 'emulator-5554', avd: 'Same_AVD' }]);
+  await app.run('alias', 'emulator-5554', 'emulator');
+  await app.setState({ devices: [{ serial: 'emulator-5554', avd: 'Same_AVD' }, { serial: 'emulator-5556', avd: 'Same_AVD' }] });
+  const command = await app.run('adb', '--device', 'emulator-5554', '--json', '--', 'shell', 'echo', 'hello');
+  assert.equal(command.code, 0, command.stdout);
+  assert.equal(JSON.parse(command.stdout).data[0].transportSerial, 'emulator-5554');
+  const binding = await app.run('metro', 'bind', 'emulator-5556', '--port', '8082', '--json');
+  assert.equal(binding.code, 0, binding.stdout);
+  assert.equal(JSON.parse(binding.stdout).data.deviceId, 'transport:emulator-5556');
+  await app.setState({ devices: [{ serial: 'emulator-5554', avd: 'Same_AVD' }] });
+  await app.run('metro', 'repair', '--all', '--json');
+  assert.equal((await app.state()).devices[0].reverse?.['tcp:8081'], undefined);
+});

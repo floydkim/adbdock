@@ -11,6 +11,9 @@ export function validateCommand(args: string[]): void {
 }
 
 export async function runCommands(selected: Device[], args: string[], timeout: number) {
+  if (selected.length > 1 && (args[0] === 'pull' || args[0] === 'bugreport')) {
+    throw new CliError('INVALID_ARGUMENT', 'pull and bugreport require a single --device to avoid overwriting host files.', 2);
+  }
   const data = await mapLimit(selected, async d => ({ deviceId: d.id, alias: d.alias, transportSerial: d.serial,
     ...await adb(['-s', d.serial, ...args], timeout) }));
   const errors = data.filter(d => d.exitCode !== 0).map(d => ({ deviceId: d.deviceId,

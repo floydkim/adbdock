@@ -29,6 +29,8 @@ most four devices at once. Results include each device's stdout, stderr, exit co
 and timeout status. Failed commands are never automatically repeated. The default
 timeout is 10 seconds; set `--timeout 120000` before `--` for longer installs.
 Host commands and interactive/streaming sessions are not supported by this runner.
+`pull` and `bugreport` require one device so concurrent commands cannot overwrite
+the same host output file.
 
 Use `ADBDOCK_ADB` for a specific adb executable and `ADBDOCK_HOME` for a separate
 configuration directory. Installation and automated tests do not modify real devices.

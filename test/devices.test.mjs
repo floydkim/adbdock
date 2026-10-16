@@ -50,3 +50,20 @@ test('a damaged config is not overwritten', async t => {
   assert.equal((await app.run('alias', 'usb1', 'other', '--json')).code, 1);
   assert.equal(await readFile(path, 'utf8'), '{invalid');
 });
+
+test('a remembered endpoint is not trusted when live identity cannot be verified', async t => {
+  const app = await setup(t, [{ serial: '192.168.0.7:5555', id: 'phone1' }]);
+  await app.run('alias', '192.168.0.7:5555', 'pixel');
+  await app.setState({ devices: [{ serial: '192.168.0.7:5555', identityFail: true }] });
+  const output = await app.run('adb', '--device', 'pixel', '--json', '--', 'install', 'app.apk');
+  assert.notEqual(output.code, 0);
+  assert.equal((await app.calls()).filter(c => c.includes('install')).length, 0);
+});
+
+test('concurrent alias writes preserve both devices', async t => {
+  const app = await setup(t);
+  const outputs = await Promise.all([app.run('alias', 'usb1', 'pixel', '--json'), app.run('alias', 'wifi1', 'galaxy', '--json')]);
+  assert.ok(outputs.every(r => r.code === 0), JSON.stringify(outputs));
+  const output = JSON.parse((await app.run('devices', '--json')).stdout);
+  assert.deepEqual(output.data.map(d => d.alias).sort(), ['galaxy', 'pixel']);
+});

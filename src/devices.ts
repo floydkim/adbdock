@@ -27,7 +27,8 @@ export async function devices(config: Config): Promise<Device[]> {
     transports.push({ serial, state, kind, model: /\bmodel:(\S+)/.exec(line)?.[1]?.replaceAll('_', ' ') ?? 'unknown' });
   }
   const identified = await mapLimit(transports, async transport => {
-    let id = config.devices.find(d => d.serials.includes(transport.serial))?.id ?? `transport:${transport.serial}`;
+    // A Wi-Fi endpoint can be reassigned; only trust saved identity while offline.
+    let id = (transport.state !== 'device' ? config.devices.find(d => d.serials.includes(transport.serial))?.id : undefined) ?? `transport:${transport.serial}`;
     const wirelessServices: string[] = [];
     const service = /^(.*)\._adb-tls-connect\._tcp\.?$/.exec(transport.serial)?.[1];
     if (service) wirelessServices.push(service);
@@ -71,6 +72,12 @@ export async function devices(config: Config): Promise<Device[]> {
 }
 
 export function resolveDevice(target: string, live: Device[], config: Config): Device | SavedDevice {
+  const exact = live.filter(d => d.transports.some(t => t.serial === target));
+  if (exact.length === 1) {
+    const device = exact[0]!;
+    const transport = device.transports.find(t => t.serial === target)!;
+    return { ...device, serial: transport.serial, state: transport.state, kind: transport.kind, model: transport.model };
+  }
   const matches = new Map<string, Device | SavedDevice>();
   for (const d of config.devices) {
     if (d.id === target || d.alias === target || d.serials.includes(target)) matches.set(d.id, d);
@@ -80,13 +87,7 @@ export function resolveDevice(target: string, live: Device[], config: Config): D
   }
   if (matches.size !== 1) throw new CliError(matches.size ? 'AMBIGUOUS_DEVICE' : 'DEVICE_NOT_FOUND',
     `Device '${target}' ${matches.size ? 'is ambiguous' : 'was not found'}. Use adbdock devices.`, 3);
-  const selected = [...matches.values()][0]!;
-  // An exact transport argument must stay exact even when USB is normally preferred.
-  if ('transports' in selected) {
-    const exact = selected.transports.find(t => t.serial === target);
-    if (exact) return { ...selected, ...exact };
-  }
-  return selected;
+  return [...matches.values()][0]!;
 }
 
 export function remember(config: Config, device: Device | SavedDevice): SavedDevice {

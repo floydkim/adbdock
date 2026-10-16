@@ -47,3 +47,12 @@ test('a timed out command reports an uncertain outcome without retrying', async 
   assert.equal(data.errors[0].code, 'COMMAND_TIMEOUT');
   assert.equal((await app.calls()).filter(c => c.includes('sleep')).length, 1);
 });
+
+test('commands writing host files require one device to prevent overwrite', async t => {
+  const app = await setup(t);
+  for (const command of [['pull', '/sdcard/file', '/tmp/file'], ['bugreport', '/tmp/report.zip']]) {
+    const output = await app.run('adb', '--all', '--json', '--', ...command);
+    assert.equal(output.code, 2);
+  }
+  assert.equal((await app.calls()).filter(c => c.includes('pull') || c.includes('bugreport')).length, 0);
+});

@@ -73,3 +73,10 @@ test('stop without an active watcher does not signal any process', async t => {
   assert.equal(output.code, 0);
   assert.equal(JSON.parse(output.stdout).data.state, 'stopped');
 });
+
+test('simultaneous watcher starts elect exactly one process', async t => {
+  const app = await setup(t, []);
+  const outputs = await Promise.all([app.run('watch', '--background', '--json'), app.run('watch', '--background', '--json')]);
+  assert.deepEqual(outputs.map(r => r.code).sort(), [0, 4]);
+  assert.equal((await app.run('stop', '--json')).code, 0);
+});

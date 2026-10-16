@@ -62,3 +62,23 @@ JSON output uses `{schemaVersion, ok, data, errors}`. Exit codes: 0 success,
 1 operation/partial failure, 2 invalid arguments, 3 missing/ambiguous/unavailable
 device, 4 watcher control failure. A successful `status` query can include
 unhealthy devices. Errors do not cause arbitrary ADB commands to be retried.
+
+## Keep connections alive
+
+```sh
+node dist/cli.js watch                 # foreground; Ctrl-C to stop
+node dist/cli.js watch --background    # detached from this terminal
+node dist/cli.js status --json         # includes watcher identity/state
+node dist/cli.js stop                  # stop either kind of watcher
+```
+
+One watcher runs per configuration directory. It checks saved mappings every two
+seconds and restores missing tunnels. Failures back off up to 30 seconds; a
+changed transport or mapping resets that delay. New devices get no automatic
+Metro mapping. `stop` preserves saved mappings and existing tunnels.
+
+CLI changes and recovery use the same configuration lock. Watcher lifetime uses
+a separate heartbeat lease; after a crash, allow about 10 seconds before restart.
+Control uses a local Unix socket under an owner-only directory in `/tmp`, without
+sending signals to saved PIDs. `watch.log` in the config directory records state
+changes, rotating at approximately 1 MiB with one previous log retained.

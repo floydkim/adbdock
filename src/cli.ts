@@ -6,6 +6,7 @@ import { isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
 import { applyBinding, problem, removeBinding, repairBindings } from './link.js';
 import { status } from './status.js';
+import { runWatcher, startBackground, stopWatcher, watcherInfo } from './daemon.js';
 
 const help = `adbdock — multi-device ADB, optional Metro recovery
 
@@ -18,7 +19,7 @@ Usage:
   adbdock metro unbind <device> [--device-port <port>]
   adbdock metro repair (--device <device> | --all)
   adbdock status [--json]
-  adbdock watch [--background]
+  adbdock watch [--background] [--interval <milliseconds>]
   adbdock stop
 `;
 
@@ -92,7 +93,21 @@ async function main() {
   }
   if (args[0] === 'status') {
     if (options(args.slice(1)).positionals.length) throw new CliError('INVALID_ARGUMENT', 'status takes no positional arguments.', 2);
-    emit(result(await status()));
+    const output = { ...result(await status()), watcher: await watcherInfo() };
+    emit(output);
+    return;
+  }
+  if (args[0] === 'watch') {
+    const parsed = options(args.slice(1), { background: { type: 'boolean' }, interval: { type: 'string' } });
+    const interval = Number(parsed.values.interval ?? 2000);
+    if (parsed.positionals.length || !Number.isInteger(interval) || interval < 100 || interval > 60_000) throw new CliError('INVALID_ARGUMENT', '--interval must be 100..60000 milliseconds.', 2);
+    if (parsed.values.background) emit(result(await startBackground(interval)));
+    else await runWatcher(interval, info => emit(result(info)));
+    return;
+  }
+  if (args[0] === 'stop') {
+    if (options(args.slice(1)).positionals.length) throw new CliError('INVALID_ARGUMENT', 'stop takes no positional arguments.', 2);
+    emit(result(await stopWatcher()));
     return;
   }
   if (args[0] === 'metro') {

@@ -4,7 +4,7 @@
 
 **Goal:** macOS에서 여러 Android 기기에 ADB 명령을 쉽게 실행하고, 선택적으로 기기별 Metro 매핑을 저장·복구한다.
 
-**Architecture:** CLI와 감시 프로세스가 같은 ADB 어댑터와 연결 관리 로직을 사용한다. 감시 실행 중의 변경 명령은 로컬 소켓으로 전달해 단일 프로세스가 처리한다. UI와 별도 MCP 서버는 만들지 않는다.
+**Architecture:** CLI와 감시 프로세스가 같은 ADB 어댑터와 연결 관리 로직을 사용한다. CLI와 감시 프로세스의 설정 변경·복구는 같은 파일 잠금으로 직렬화한다. 로컬 소켓은 실행 확인과 중지에 사용한다. UI와 별도 MCP 서버는 만들지 않는다.
 
 **Tech Stack:** Node.js 22+, TypeScript, node:test, Node 내장 parseArgs/child_process/net/fs/http, 외부 adb.
 
@@ -12,8 +12,8 @@
 
 ## 작업 위치와 진행 규칙
 
-- 새 프로젝트 위치: `/Users/floydkim/Documents/Codex/2026-10-17/new-chat/work/adbdock`.
-- 현재 폴더는 빈 작업 폴더이며 Git 저장소가 아니다.
+- 새 프로젝트 위치: `/Users/floydkim/projects/adbdock`.
+- 새 Git 저장소의 feat/initial-cli 브랜치에서 구현한다.
 - 아래 파일 경로는 새 프로젝트 루트를 기준으로 한다.
 - 승인된 설계 문서는 `../../outputs/2026-10-17-adbdock-design.md`에 있다. 프로젝트 생성 시 docs/plans/2026-10-17-adbdock-design.md로 복사한다.
 - 기능을 한 단계씩 구현하고 각 단계의 실제 결과를 보고한다. 첫 피드백 지점은 Task 2B 이후다.
@@ -87,7 +87,7 @@
 1. 감시 중복 시작 방지, startup handshake 실패, CLI 변경의 직렬 처리, 감시 프로세스 비정상 종료 후 재시작, 다른 프로세스에 대한 종료 방지 시나리오 테스트를 작성한다.
 2. npm test로 실패를 확인한다.
 3. Unix socket과 실행 식별자, 사용자만 접근하는 런타임 디렉터리, background spawn과 readiness handshake를 구현한다. 실행 파일/인자는 설치 후 CLI 경로를 사용한다.
-4. 감시가 실행 중이면 bind/unbind/repair를 socket으로 전달한다. 없으면 잠금 아래 같은 연결 관리 로직으로 단발 실행한다. 시작/종료 경계의 경합을 테스트한다.
+4. CLI 변경과 감시 복구는 같은 설정 잠금으로 직렬화한다. daemon socket은 ping/stop만 처리한다. 시작/종료 경계의 경합을 테스트한다.
 5. watch --background와 stop을 구현한다. stop 후 매핑과 reverse가 유지되는지 확인한다. 로그는 stdout 파이프가 아닌 크기가 제한된 파일에 기록한다.
 6. build/typecheck/test를 실행한다.
 

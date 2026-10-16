@@ -9,12 +9,15 @@ export const cliPath = new URL('../dist/cli.js', import.meta.url).pathname;
 
 export async function setup(t, devices = [{ serial: 'usb1' }, { serial: 'wifi1', id: 'phone2' }]) {
   const directory = await mkdtemp(path.join(tmpdir(), 'adbdock-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
   const statePath = path.join(directory, 'adb.json');
   await writeFile(statePath, JSON.stringify({ devices }));
   const env = { ...process.env, ADBDOCK_HOME: path.join(directory, 'home'),
     ADBDOCK_ADB: new URL('./fixtures/fake-adb.mjs', import.meta.url).pathname,
     FAKE_ADB_STATE: statePath };
+  t.after(async () => {
+    await exec(process.execPath, [cliPath, 'stop', '--json'], { env, timeout: 5000 }).catch(() => {});
+    await rm(directory, { recursive: true, force: true });
+  });
   return {
     env, directory, statePath,
     async run(...args) {

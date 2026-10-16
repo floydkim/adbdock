@@ -1,6 +1,7 @@
 import { checkedAdb, mapLimit } from './adb.js';
 import { CliError } from './output.js';
 import type { Config, SavedDevice } from './store.js';
+import { discoveredServices } from './wireless.js';
 
 interface Transport {
   serial: string;
@@ -51,6 +52,16 @@ export async function devices(config: Config): Promise<Device[]> {
     }
     return { ...transport, id, wirelessServices };
   });
+  const needsService = identified.filter(d => d.kind === 'wifi' && d.state === 'device' && d.id.startsWith('android:') && !d.wirelessServices.length);
+  if (needsService.length) {
+    try {
+      const services = await discoveredServices();
+      for (const d of needsService) {
+        const names = [...new Set(services.filter(s => s.endpoint === d.serial).map(s => s.name))];
+        if (names.length === 1) d.wirelessServices.push(names[0]!);
+      }
+    } catch { /* A live device remains usable when optional mDNS discovery is unavailable. */ }
+  }
   const grouped = new Map<string, Device>();
   for (const item of identified) {
     const peers = identified.filter(d => d.id === item.id);

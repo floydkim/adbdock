@@ -34,6 +34,19 @@ test('a known GUID can reconnect a device previously registered through USB', as
   await waitFor(async () => (await app.state()).devices[0]?.reverse?.['tcp:8081'] === 'tcp:8082');
 });
 
+test('a live endpoint records its matching mDNS service when the GUID is unavailable', async t => {
+  const app = await setup(t, [{ serial: '192.168.0.7:40000', id: 'phone1' }]);
+  const state = await app.state();
+  state.mdns = 'adb-phone1-xyz _adb-tls-connect._tcp 192.168.0.7:40000';
+  await app.setState(state);
+  assert.equal((await app.run('alias', '192.168.0.7:40000', 'pixel', '--json')).code, 0);
+  await app.setState({ devices: [], mdns: 'adb-phone1-xyz _adb-tls-connect._tcp 192.168.0.8:45000',
+    connectDevices: { '192.168.0.8:45000': { serial: '192.168.0.8:45000', id: 'phone1' } } });
+  await app.run('watch', '--background', '--interval', '100', '--json');
+  await waitFor(async () => (await app.calls()).some(c => c[0] === 'connect'));
+  assert.deepEqual((await app.calls()).find(c => c[0] === 'connect'), ['connect', '192.168.0.8:45000']);
+});
+
 test('unknown services and pairing endpoints are never connected', async t => {
   const app = await setup(t, [{ serial: 'usb1', id: 'phone1', guid: 'known' }]);
   await app.run('alias', 'usb1', 'pixel');

@@ -64,3 +64,47 @@ verified. No global install or npm publication was performed.
 with `adbdock metro unbind <alias> --device-port <port>` while the device is online.
 External changed rules are preserved. Initial pairing and wireless debugging
 settings remain under the user's control.
+
+## Follow-up: RN 0.84.1 on two devices
+
+Used a temporary Community CLI app with New Architecture and Hermes enabled.
+Built one arm64-v8a debug APK and installed it on both devices via one adbdock
+multi-device command. Native build completed with Android Studio's JBR 21.
+
+Targets: Android 16 emulator (Pixel 9 Pro API 36) and Samsung Galaxy Z Flip4
+(SM-F721N, Android 15) over TLS wireless ADB. Both app debug-server addresses were
+explicitly localhost:8081 so that the emulator also exercised reverse tunnels.
+Two source roots served distinguishable App screens through Metro 8081 and 8082.
+Test aliases and bindings used an isolated ADBDOCK_HOME.
+
+| Scenario | Observed result |
+|---|---|
+| Both devices on Metro A:8081 | Both rendered A1, then A2 via Fast Refresh; counters stayed at 1 |
+| Galaxy switched to Metro B:8082 | Same native APK rendered B1 after app relaunch; emulator stayed on A2 |
+| Update A only | Emulator reached A3 with counter 1; Galaxy remained B1 with counter 1 |
+| Update B only | Galaxy reached B2 with counter 1; emulator remained A3 with counter 1 |
+| Remove Galaxy reverse rule | Watcher restored device 8081 → host 8082; one observed recovery took 574 ms |
+| Disconnect Galaxy wireless ADB | Watcher issued adb connect to the discovered endpoint and restored the mapping; one observed recovery took 2490 ms |
+| Fast Refresh after wireless disconnect | Did not automatically recover: Galaxy stayed B2 although runtime/ADB reconnected |
+| Explicit Reload after recovery | Loaded B3 (counter reset), then Fast Refresh to B4 preserved counter 1 |
+| Other device during Galaxy disconnect | Emulator continued to A4 with counter 1 |
+
+The reload requirement was confirmed in the installed RN source:
+`react-native/Libraries/Utilities/HMRClient.js` handles socket close by reporting
+Fast Refresh as unavailable and asking for a Reload. The installed
+`metro-runtime/src/modules/HMRClient.js` does not reopen the closed socket.
+
+The Galaxy returned an empty persist.adb.wifi.guid. The original implementation
+therefore missed reconnect metadata for IP:port connections. Added a regression
+test, observed it fail, then recorded the unique advertised TLS service for a
+verified live endpoint. All 38 CLI boundary tests and typecheck passed afterward.
+
+Initial emulator app launch stalled, with ADB shell timing out while Galaxy
+remained responsive. A device-scoped adb reconnect restored shell access; after
+the watcher restored the tunnel, app relaunch succeeded. Its low-RAM launch
+configuration was observed, but the stall's root cause was not established.
+
+USB physical-device operation, two or more simultaneous emulators, actual wireless
+IP/port changes, wireless-debugging toggle, sleep/wake, Metro process restart and
+long-running stability remain unverified on this setup. Fixture endpoint-change
+tests passed separately. The recovery timings above are single observations.

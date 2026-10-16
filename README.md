@@ -110,14 +110,27 @@ require manual intervention. Legacy `adb tcpip` devices can be used while
 connected, but stale IP addresses are not automatically retried. The tool does
 not turn wireless debugging on or perform initial pairing.
 
+If the GUID is unavailable (observed on Galaxy Z Flip4), a live IP:port transport
+with a verified hardware identity can remember the unique mDNS service advertised
+at that same endpoint. No hardware-ID prefix guesses or stale-IP matching are used.
+
+### Fast Refresh after a disconnect
+
+Restoring ADB and the reverse tunnel does not recreate a closed RN HMR socket.
+In the RN 0.84.1 device test, Fast Refresh needed an explicit app Reload after a
+wireless ADB disconnect. `watch` does not reload apps or reset their state.
+Changing a Metro mapping can also require a Reload for existing connections to
+use the new target. `status` intentionally reports app connectivity as unknown.
+
 The service/GUID behavior follows the [Android ADB Wi-Fi architecture](https://android.googlesource.com/platform/packages/modules/adb/+/HEAD/docs/dev/adb_wifi.md).
 
 ## Verification and limits
 
 Run `npm test` and `npm run typecheck`. See [validation record](docs/manual-validation.md)
-for the scenario coverage and pending device checks. One Android 16 emulator was
-used to verify alias lookup, port mapping, device-to-host HTTP and watcher recovery.
-Physical-device Wi-Fi and actual RN Fast Refresh stability remain unverified.
+for scenario coverage and pending checks. RN 0.84.1 was tested on an Android 16
+emulator and a Galaxy Z Flip4 over Wi-Fi: shared/separate Metros, state-preserving
+Fast Refresh, missing-tunnel recovery and wireless ADB reconnect. These are short
+functional checks, not a long-running stability or sleep/wake assessment.
 
 Multiple instances of the same AVD have no unique persistent AVD identity. Exact
 serial selection remains available, but a mapping created in that ambiguous state

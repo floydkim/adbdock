@@ -80,3 +80,23 @@ test('simultaneous watcher starts elect exactly one process', async t => {
   assert.deepEqual(outputs.map(r => r.code).sort(), [0, 4]);
   assert.equal((await app.run('stop', '--json')).code, 0);
 });
+
+test('background startup reports a missing adb executable', async t => {
+  const app = await setup(t, []);
+  app.env.ADBDOCK_ADB = `${app.directory}/missing-adb`;
+  const output = await app.run('watch', '--background', '--json');
+  assert.equal(output.code, 4);
+  assert.equal(JSON.parse(output.stdout).errors[0].code, 'ADB_UNAVAILABLE');
+});
+
+test('a crashed watcher can restart after its lease expires', async t => {
+  const app = await setup(t, []);
+  const first = JSON.parse((await app.run('watch', '--background', '--json')).stdout);
+  assert.equal(first.ok, true);
+  process.kill(first.data.pid, 'SIGKILL');
+  await delay(11_000);
+  const second = await app.run('watch', '--background', '--json');
+  assert.equal(second.code, 0, second.stdout);
+  assert.notEqual(JSON.parse(second.stdout).data.pid, first.data.pid);
+  assert.equal((await app.run('stop', '--json')).code, 0);
+});

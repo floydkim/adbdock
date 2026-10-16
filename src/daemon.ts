@@ -9,6 +9,7 @@ import lockfile from 'proper-lockfile';
 import { CliError } from './output.js';
 import { home, readConfig } from './store.js';
 import { watchLoop } from './watch.js';
+import { checkedAdb } from './adb.js';
 
 const runtime = path.join('/tmp', `adbdock-${process.getuid?.() ?? 'user'}-${createHash('sha256').update(home).digest('hex').slice(0, 16)}`);
 const socketPath = path.join(runtime, 'watch.sock');
@@ -95,6 +96,7 @@ export async function runWatcher(interval: number, ready: (info: WatchInfo) => v
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
   try {
+    await checkedAdb(['devices', '-l']);
     // Only the process holding the watcher lease may remove an old socket.
     await unlink(socketPath).catch(error => { if (error.code !== 'ENOENT') throw error; });
     await new Promise<void>((resolve, reject) => {

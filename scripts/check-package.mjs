@@ -62,7 +62,7 @@ try {
   assert.equal((await cli('watch', 'stop')).data.state, 'stopped');
   const oneOff = JSON.parse((await exec('npm', ['exec', '--yes', '--package', tarball, '--', 'adbdock', '--help', '--json'], { env, cwd: directory, timeout: 120000 })).stdout);
   assert(oneOff.ok && oneOff.data.includes('adbdock'));
-  const dryRun = JSON.parse((await exec('npm', ['publish', tarball, '--dry-run', '--ignore-scripts', '--json'], { cwd: directory, timeout: 60000 })).stdout);
+  const dryRun = JSON.parse((await exec('npm', ['publish', tarball, '--dry-run', '--ignore-scripts', '--offline', '--cache', path.join(directory, 'publish-cache'), '--json'], { cwd: directory, timeout: 60000 })).stdout);
   assert.equal((dryRun[manifest.name] ?? dryRun).name, manifest.name);
   controller.signal.throwIfAborted();
   console.log(JSON.stringify({ ok: true, name: packed.name, version: packed.version, files: names,

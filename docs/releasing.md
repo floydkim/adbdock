@@ -28,7 +28,9 @@ its file list and executable mode, installs under a temporary global prefix
 with `--omit=dev`, and runs installed help/device-query/watcher start-stop checks.
 ADB is faked only for those package checks; they do not touch real devices.
 It also verifies `npm exec --package <tarball>` and `npm publish <tarball>
---dry-run`. It needs npm registry access to resolve runtime dependencies.
+--dry-run`. The dry-run uses offline mode and a fresh temporary cache so already
+published versions can still be checked; it does not validate version availability
+or authentication. Installation checks need registry access for dependencies.
 Only temporary installation/config resources are removed; normal npm caches
 may be updated. It does not globally install into the user's normal prefix.
 

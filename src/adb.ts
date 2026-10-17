@@ -8,9 +8,9 @@ export interface CommandOutput {
   timedOut: boolean;
 }
 
-export function adb(args: string[], timeout = 10_000): Promise<CommandOutput> {
+export function adb(args: string[], timeout = 10_000, input?: string): Promise<CommandOutput> {
   return new Promise((resolve, reject) => {
-    execFile(process.env.ADBDOCK_ADB ?? 'adb', args, {
+    const child = execFile(process.env.ADBDOCK_ADB ?? 'adb', args, {
       encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: 4 * 1024 * 1024,
     }, (error, stdout, stderr) => {
       if (error && typeof error.code === 'string' && ['ENOENT', 'EACCES'].includes(error.code)) {
@@ -20,6 +20,8 @@ export function adb(args: string[], timeout = 10_000): Promise<CommandOutput> {
       resolve({ stdout, stderr, exitCode: error ? (typeof error.code === 'number' ? error.code : null) : 0,
         timedOut: Boolean(error?.killed && error.signal === 'SIGKILL') });
     });
+    child.stdin?.on('error', () => {});
+    child.stdin?.end(input);
   });
 }
 

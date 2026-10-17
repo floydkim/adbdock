@@ -129,3 +129,13 @@ export function selectDevices(targets: string[], all: boolean, live: Device[], c
   }
   return [...new Map((selected as Device[]).map(d => [d.serial, d])).values()];
 }
+
+export function assignAlias(config: Config, device: Device | SavedDevice, live: Device[], name: string): SavedDevice {
+  if (config.devices.some(d => d.id !== device.id && (d.alias === name || d.serials.includes(name) || d.id === name))
+    || live.some(d => d.id !== device.id && (d.id === name || d.transports.some(t => t.serial === name)))) {
+    throw new CliError('ALIAS_EXISTS', `Alias '${name}' already identifies another device.`, 2);
+  }
+  const saved = remember(config, device);
+  saved.alias = name;
+  return saved;
+}

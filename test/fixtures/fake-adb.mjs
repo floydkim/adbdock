@@ -9,8 +9,19 @@ if (args[0] === 'devices') {
   console.log('List of devices attached');
   for (const d of state.devices) console.log(`${d.serial}\t${d.state ?? 'device'} model:${d.model ?? 'Pixel'} transport_id:1`);
 } else if (args[0] === 'mdns') {
+  if (state.mdnsFail) { console.error('mDNS unavailable'); process.exit(1); }
   console.log(state.mdns ?? 'List of discovered mdns services');
+} else if (args[0] === 'pair') {
+  let code = '';
+  for await (const chunk of process.stdin) code += chunk;
+  if (code.trim() !== (state.pairCode ?? '123456') || state.pairFail) {
+    console.error(`Wrong pairing code: ${code.trim()}`); process.exit(1);
+  }
+  if (state.autoConnect) state.devices.push(state.autoConnect);
+  writeFileSync(statePath, JSON.stringify(state));
+  console.log(`Successfully paired to ${args[1]} [guid=${state.pairGuid ?? 'adb-phone1-xyz'}]`);
 } else if (args[0] === 'connect') {
+  if (state.connectDelay) await new Promise(resolve => setTimeout(resolve, state.connectDelay));
   const added = state.connectDevices?.[args[1]];
   if (added) {
     state.devices.push(added);

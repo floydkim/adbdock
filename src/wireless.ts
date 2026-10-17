@@ -8,12 +8,12 @@ import type { Problem } from './output.js';
 interface Service { name: string; endpoint: string }
 export type WirelessRetries = Map<string, { failures: number; next: number; endpoint: string }>;
 
-export async function discoveredServices(): Promise<Service[]> {
+export async function discoveredServices(type: '_adb-tls-connect._tcp' | '_adb-tls-pairing._tcp' = '_adb-tls-connect._tcp'): Promise<Service[]> {
   const output = await checkedAdb(['mdns', 'services']);
   const services: Service[] = [];
   for (const line of output.split(/\r?\n/)) {
-    const [name, type, endpoint] = line.trim().split(/\s+/);
-    if (!name || !endpoint || type?.replace(/\.$/, '') !== '_adb-tls-connect._tcp') continue;
+    const [name, serviceType, endpoint] = line.trim().split(/\s+/);
+    if (!name || !endpoint || serviceType?.replace(/\.$/, '') !== type) continue;
     const match = /^(\d+\.\d+\.\d+\.\d+):(\d+)$/.exec(endpoint);
     if (!match || isIP(match[1]!) !== 4 || Number(match[2]) < 1 || Number(match[2]) > 65535) continue;
     services.push({ name, endpoint });
@@ -29,7 +29,7 @@ function bonjourOutput(args: string[], signal: AbortSignal): Promise<string> {
   });
 }
 
-async function bonjourService(name: string, signal: AbortSignal): Promise<Service[]> {
+export async function bonjourService(name: string, signal: AbortSignal): Promise<Service[]> {
   if (!/^[a-zA-Z0-9_-]+$/.test(name) || signal.aborted) return [];
   const output = await bonjourOutput(['-L', name, '_adb-tls-connect._tcp', 'local'], signal);
   const targets = new Map<string, { host: string; port: number }>();

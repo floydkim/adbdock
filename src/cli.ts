@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { CliError, print, result } from './output.js';
 import { parseArgs } from 'node:util';
-import { devices, remember, resolveDevice, selectDevices } from './devices.js';
+import { assignAlias, devices, remember, resolveDevice, selectDevices } from './devices.js';
 import { isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
 import { applyBinding, problem, removeBinding, repairBindings } from './link.js';
+import { pairDevice, pairingServices } from './pair.js';
 import { status } from './status.js';
 import { runWatcher, startBackground, stopWatcher, watcherInfo } from './daemon.js';
 
@@ -13,6 +14,9 @@ const help = `adbdock — multi-device ADB, optional Metro recovery
 Usage:
   adbdock devices [--json]
   adbdock alias <device> <name>
+  adbdock pair [ip:pairing-port] [--alias <name>] [--connect <ip:connection-port>]
+  adbdock pair <ip:pairing-port> --code-stdin [--json]
+  adbdock pair --list [--json]
   adbdock adb --device <device> [--device <device> ...] -- <adb command>
   adbdock adb --all [--json] -- <adb command>
   adbdock metro bind <device> --port <port> [--device-port <port>]
@@ -64,16 +68,21 @@ async function main() {
     const saved = await withConfig(async config => {
       const live = await devices(config);
       const device = resolveDevice(target, live, config);
-      if (config.devices.some(d => d.id !== device.id && (d.alias === name || d.serials.includes(name) || d.id === name))
-        || live.some(d => d.id !== device.id && (d.id === name || d.transports.some(t => t.serial === name)))) {
-        throw new CliError('ALIAS_EXISTS', `Alias '${name}' already identifies another device.`, 2);
-      }
-      const saved = remember(config, device);
-      saved.alias = name;
+      const saved = assignAlias(config, device, live, name);
       await saveConfig(config);
       return saved;
     });
     print(result(saved), json);
+    return;
+  }
+  if (args[0] === 'pair') {
+    const parsed = options(args.slice(1), { list: { type: 'boolean' }, alias: { type: 'string' }, connect: { type: 'string' }, 'code-stdin': { type: 'boolean' } });
+    if (parsed.positionals.length > 1 || (parsed.values.list && (parsed.positionals.length || parsed.values.alias || parsed.values.connect || parsed.values['code-stdin']))) {
+      throw new CliError('INVALID_ARGUMENT', 'Use pair [ip:pairing-port] or pair --list.', 2);
+    }
+    if (parsed.values.list) emit(result(await pairingServices()));
+    else emit(await pairDevice({ endpoint: parsed.positionals[0], alias: parsed.values.alias as string | undefined,
+      connect: parsed.values.connect as string | undefined, codeStdin: Boolean(parsed.values['code-stdin']) }));
     return;
   }
   if (args[0] === 'adb') {

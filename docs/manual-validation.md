@@ -43,14 +43,14 @@ No USB/Wi-Fi physical devices or discovered mDNS services were available.
 The following remain to be checked with hardware and running RN projects:
 
 - [ ] USB phone + Wi-Fi phone + two emulators connected simultaneously
-- [ ] Multiple devices receiving updates from one Metro
-- [ ] Different projects/Metro ports assigned to different devices
+- [x] Multiple devices receiving updates from one Metro
+- [x] Different projects/Metro ports assigned to different devices
 - [ ] USB unplug/replug with recovery and no impact on other devices
 - [ ] Wireless reconnect after IP/port change and after wireless debugging toggle
 - [ ] Mac sleep/wake with automatic recovery
-- [ ] Metro stop/restart, preserving the reverse rules
+- [x] Metro stop/restart, preserving the reverse rules (explicit RN Reload required)
 - [ ] USB/Wi-Fi dual transport on the same real phone
-- [ ] Correct project visible and actual Fast Refresh on every device
+- [x] Correct project visible and actual Fast Refresh on every tested device
 
 ## Packaging
 
@@ -104,7 +104,40 @@ remained responsive. A device-scoped adb reconnect restored shell access; after
 the watcher restored the tunnel, app relaunch succeeded. Its low-RAM launch
 configuration was observed, but the stall's root cause was not established.
 
-USB physical-device operation, two or more simultaneous emulators, actual wireless
-IP/port changes, wireless-debugging toggle, sleep/wake, Metro process restart and
-long-running stability remain unverified on this setup. Fixture endpoint-change
-tests passed separately. The recovery timings above are single observations.
+At this phase, additional physical-device and recovery scenarios were pending.
+The follow-up below records which were subsequently covered. The recovery timings
+above are single observations.
+
+## Follow-up: remaining autonomous scenarios
+
+Created a temporary second AVD (`AdbDock_Test_API36`) from the existing API 36
+system image. No extra system image download was needed. Tested Galaxy over Wi-Fi
+plus the original emulator and this second emulator simultaneously.
+
+| Scenario | Observed result |
+|---|---|
+| Three-device generic ADB command | Returned separate correct results for the Galaxy and both emulators |
+| Two emulators sharing Metro A, Galaxy on Metro B | All three rendered the correct source and preserved counter 1 through Fast Refresh |
+| Stop Metro B | Galaxy reverse stayed ready; server became unreachable; Metro A updates still reached the original emulator with counter 1 |
+| Restart Metro B | Server became running; explicit Reload loaded B5, then B6 Fast Refresh preserved counter 1 |
+| External change of temporary tcp:8484 mapping | Watcher reported REVERSE_CONFLICT and preserved the external target |
+| Unbind that externally changed mapping | Removed desired config, preserved external tunnel, reported REVERSE_CONFLICT; test-owned external tunnel was then cleaned up |
+| Suspend watcher process for 12 seconds | Same watcher survived; missing emulator tunnel restored about 607 ms after SIGCONT |
+| Restart second AVD on a different console port | Serial changed emulator-5556 → emulator-5560; saved alias emulator2 and mapping followed the AVD identity |
+| App after AVD serial change | Loaded A6; A7 Fast Refresh preserved counter 1 |
+| Empty mDNS discovery plus wireless disconnect | Logged WIRELESS_NOT_DISCOVERED; retained saved device/config; both emulators remained ready; manual adb connect restored Galaxy |
+
+At the end all three showed A7/A7/B7 with counter 1. Captured screenshots and UI
+snapshots before cleanup. Removed the temporary mapping, stopped/deleted the
+temporary AVD and removed only its alias from the isolated test config. Original
+emulator, Galaxy, both Metros and the existing watcher were preserved.
+
+The 12-second process suspension is not an actual Mac sleep/wake test. Current
+ADB mDNS discovery was empty despite an existing wireless connection; automated
+wireless reconnect depends on advertised discovery and cannot be guaranteed in
+that condition. This is separate from the prior successful discovered-service
+reconnect test. No implementation changes were made for these scenarios.
+
+Still requires human/device preparation: physical USB connection and unplug/replug,
+USB/Wi-Fi dual transport, wireless debugging toggle with a recovery path, actual
+wireless IP/port change, Mac sleep/wake and long-running stability assessment.

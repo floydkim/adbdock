@@ -115,12 +115,13 @@ export function remember(config: Config, device: Device | SavedDevice): SavedDev
 }
 
 export function selectDevices(targets: string[], all: boolean, live: Device[], config: Config): Device[] {
-  if ((!all && targets.length === 0) || (all && targets.length > 0)) {
+  if (all && targets.length > 0) {
     throw new CliError('INVALID_ARGUMENT', 'Choose --device <device> (repeatable) or --all.', 2);
   }
-  if (all) {
+  if (all || targets.length === 0) {
     const online = live.filter(d => d.state === 'device');
-    if (!online.length) throw new CliError('DEVICE_NOT_FOUND', 'No online devices.', 3);
+    if (!online.length) throw new CliError('DEVICE_NOT_FOUND', 'No online devices. Run adbdock devices and check debugging connections and authorization.', 3);
+    if (!all && online.length > 1) throw new CliError('AMBIGUOUS_DEVICE', 'Multiple online devices. Choose --device <device> (repeatable) or --all. Run adbdock devices to list targets.', 3);
     return online;
   }
   const selected = targets.map(t => resolveDevice(t, live, config));

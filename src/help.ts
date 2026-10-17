@@ -115,10 +115,12 @@ Check paired, connected and errors in JSON before retrying.
   adb: `adbdock adb — Run a command on selected Android devices
 
 Usage:
-  adbdock adb --device <device> -- <adb command>
+  adbdock adb [-d <device>] -- <adb command>
   adbdock adb --all -- <adb command>
 
 A device can be an alias, live ADB serial or device ID.
+With one online device, target options can be omitted. Multiple devices need --device or --all.
+Verified USB/Wi-Fi transports of the same phone count as one device.
 Only finite device commands are supported, such as shell, install or push.
 Interactive shells, streams and host commands are unsupported.
 Pull and bugreport require a single device.
@@ -128,13 +130,14 @@ Options:
     Select one device. Repeat this option to select several.
   --all
     Select every online device, including devices without saved aliases.
-    Choose either --device or --all.
+    Cannot be combined with --device.
   --timeout <milliseconds>
     Per-device command limit: 10000 by default; range 1..3600000.
   --
     End adbdock options. Everything after this goes to ADB unchanged.
 
 Examples:
+  adbdock adb -- shell getprop ro.product.model
   adbdock adb --device phone -- shell getprop ro.product.model
   adbdock adb --device phone --device emulator -- shell getprop ro.build.version.release
   adbdock adb --device phone --timeout 120000 -- install -r app.apk
@@ -231,18 +234,21 @@ Examples:
   '@command': `adbdock @<name> — Run a saved command for selected devices
 
 Usage:
-  adbdock @<name> -d <device> [-d <device>] [-- <arguments>]
+  adbdock @<name> [-d <device> ...] [-- <arguments>]
   adbdock @<name> --all [-- <arguments>]
 
 Options:
   -d, --device <device>
     Device alias, serial or ID. Repeat for several devices.
   --all
-    Select every online device. Choose --device or --all explicitly.
+    Select every online device. Cannot be combined with --device.
   --timeout <milliseconds>
     Per-device limit: 10000 by default; range 1..3600000.
   --
     Pass remaining arguments to the script as $1, $2 and so on.
+
+With one online device, target options can be omitted. Multiple devices need --device or --all.
+Verified USB/Wi-Fi transports of the same phone count as one device.
 
 Defaults:
   menu
@@ -259,6 +265,7 @@ Timeout or Ctrl+C terminates owned shell/child jobs. Mutations are not retried.
 Use unique file paths in custom scripts; timestamps alone may collide.
 
 Examples:
+  adbdock @menu
   adbdock @menu -d phone -d emulator
   adbdock @reverse -d phone -- 8082
   adbdock @screenshot --all

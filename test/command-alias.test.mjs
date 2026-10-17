@@ -69,7 +69,7 @@ test('reverse parameters apply only to selected devices without saving Metro map
   assert.deepEqual((await app.state()).devices[0].reverse, { 'tcp:18081': 'tcp:8082' });
 });
 
-test('aliases require explicit valid targets before any script runs', async t => {
+test('aliases reject ambiguous or invalid targets before any script runs', async t => {
   const app = await setup(t);
   for (const targets of [[], ['-d', 'missing'], ['-d', 'usb1', '-d', 'missing']]) {
     assert.notEqual((await app.run('@menu', ...targets, '--json')).code, 0);

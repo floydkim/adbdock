@@ -472,3 +472,22 @@ The default screenshot command alias was subsequently renamed to `screencap`
 to match ADB terminology.
 The presets were then renamed to `menu` (formerly `shake`) and `screenshot`
 (formerly `screencap`); current usage is `adbdock @screenshot -d <device>`.
+
+## Automatic single-device targeting — 2026-10-17
+
+ADB and saved command aliases now accept omitted target options when exactly one
+logical device is online. Verified USB/Wi-Fi transports count once and retain USB
+preference. Offline/unauthorized peers are excluded. Multiple online devices report
+AMBIGUOUS_DEVICE; none report DEVICE_NOT_FOUND with connection/authorization guidance.
+Explicit target validation and the --all/--device conflict remain enforced.
+
+Typecheck and all 118 tests passed, including shared ADB/alias single-target,
+USB/Wi-Fi grouping, unavailable-peer, zero-target and ambiguity boundaries.
+Installed package checks exercised an alias without a target on one fake device.
+Independent review found no important issue and passed the four new boundary tests.
+The real setup had two online logical devices, so only rejection of implicit
+multi-device ADB execution was physically checked; no devices were disconnected
+for this test. Single-device success was validated with fake ADB, not a physical
+single-device setup in this run. No UI command was sent to real devices.
+Evidence: auto-target-checks.log and auto-target-package-checks.log in scratch
+rn084-validation. No package was published.

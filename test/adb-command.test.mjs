@@ -21,9 +21,9 @@ test('one failed device does not stop another device', async t => {
   assert.equal(data.data[1].exitCode, 0);
 });
 
-test('targets must be explicit and validated before any command is sent', async t => {
+test('multiple devices and invalid targets are rejected before any command is sent', async t => {
   const app = await setup(t);
-  for (const targets of [[], ['--device', 'missing'], ['--device', 'usb1', '--device', 'missing']]) {
+  for (const targets of [[], ['--device', 'missing'], ['--device', 'usb1', '--device', 'missing'], ['--all', '--device', 'usb1']]) {
     const output = await app.run('adb', ...targets, '--json', '--', 'install', 'app.apk');
     assert.notEqual(output.code, 0);
   }
@@ -55,4 +55,54 @@ test('commands writing host files require one device to prevent overwrite', asyn
     assert.equal(output.code, 2);
   }
   assert.equal((await app.calls()).filter(c => c.includes('pull') || c.includes('bugreport')).length, 0);
+});
+
+test('one available device is selected automatically despite offline or unauthorized peers', async t => {
+  const app = await setup(t, [
+    { serial: 'usb1' }, { serial: 'offline', state: 'offline' }, { serial: 'locked', state: 'unauthorized' },
+  ]);
+  const adb = await app.run('adb', '--json', '--', 'shell', 'echo', 'auto-selected');
+  assert.equal(adb.code, 0, adb.stdout);
+  const alias = await app.run('@menu', '--json');
+  assert.equal(alias.code, 0, alias.stdout);
+  for (const output of [adb, alias]) assert.deepEqual(JSON.parse(output.stdout).data.map(d => d.transportSerial), ['usb1']);
+  assert((await app.calls()).some(c => c.join(' ') === '-s usb1 shell input keyevent 82'));
+});
+
+test('USB and Wi-Fi transports of one verified phone count as one automatic target', async t => {
+  const app = await setup(t, [
+    { serial: '192.168.1.7:37000', id: 'phone1' }, { serial: 'usb1', id: 'phone1' },
+  ]);
+  const adb = await app.run('adb', '--json', '--', 'shell', 'echo', 'auto-selected');
+  assert.equal(adb.code, 0, adb.stdout);
+  const alias = await app.run('@menu', '--json');
+  assert.equal(alias.code, 0, alias.stdout);
+  for (const output of [adb, alias]) assert.deepEqual(JSON.parse(output.stdout).data.map(d => d.transportSerial), ['usb1']);
+});
+
+test('automatic targeting with no available devices explains connection and authorization', async t => {
+  for (const devices of [[], [{ serial: 'usb1', state: 'offline' }], [{ serial: 'usb1', state: 'unauthorized' }]]) {
+    const app = await setup(t, devices);
+    for (const args of [['adb', '--json', '--', 'shell', 'echo', 'auto-selected'], ['@menu', '--json']]) {
+      const output = await app.run(...args);
+      assert.equal(output.code, 3, output.stdout);
+      const error = JSON.parse(output.stdout).errors[0];
+      assert.equal(error.code, 'DEVICE_NOT_FOUND');
+      assert.match(error.message, /adbdock devices/);
+      assert.match(error.message, /authorization/);
+    }
+    assert.equal((await app.calls()).some(c => c.includes('auto-selected') || c.includes('keyevent')), false);
+  }
+});
+
+test('multiple available devices still require explicit targets for ADB and saved aliases', async t => {
+  const app = await setup(t);
+  for (const args of [['adb', '--json', '--', 'shell', 'echo', 'auto-selected'], ['@menu', '--json']]) {
+    const output = await app.run(...args);
+    assert.equal(output.code, 3, output.stdout);
+    const error = JSON.parse(output.stdout).errors[0];
+    assert.equal(error.code, 'AMBIGUOUS_DEVICE');
+    assert.match(error.message, /--device.*--all/);
+  }
+  assert.equal((await app.calls()).some(c => c.includes('auto-selected') || c.includes('keyevent')), false);
 });

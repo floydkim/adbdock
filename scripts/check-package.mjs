@@ -47,7 +47,7 @@ try {
   assert.deepEqual((await cli('adb-alias', 'list')).data.map(a => a.name), ['menu', 'reverse', 'screenshot']);
   await writeFile(env.FAKE_ADB_STATE, JSON.stringify({ devices: [{ serial: 'package-test' }] }));
   assert((await cli('adb-alias', 'add', 'probe', 'adb shell echo alias-probe')).ok);
-  const aliasResult = await cli('@probe', '-d', 'package-test');
+  const aliasResult = await cli('@probe');
   assert(aliasResult.ok && aliasResult.data[0].stdout.includes('alias-probe'));
   assert((await cli('adb-alias', 'remove', 'probe')).ok);
   await writeFile(env.FAKE_ADB_STATE, '{"devices":[]}');

@@ -10,6 +10,7 @@ adbdock adb --device <a> --device <b> --json -- shell <command>
 adbdock adb --device <a> --timeout 120000 --json -- install -r <apk>
 ```
 
+- Target options may be omitted for `adb` and `@name` when exactly one device is online (verified USB/Wi-Fi transports count as one). With multiple devices choose `-d`/`--device` or `--all`; keep explicit targets for coordinated agent work.
 - Metro configuration is unnecessary for ADB commands. Use `--all` only when every online device is intended.
 - A phone's verified USB/Wi-Fi transports share one identity; aliases prefer USB. An exact live serial selects a transport.
 - Interactive/streaming commands are unsupported. Pull/bugreport require one device. Partial failures appear in JSON errors; failed mutations are not automatically retried.

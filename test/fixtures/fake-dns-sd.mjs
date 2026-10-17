@@ -7,6 +7,9 @@ const state = JSON.parse(readFileSync(statePath, 'utf8'));
 appendFileSync(`${statePath}.bonjour`, `${JSON.stringify(args)}\n`);
 appendFileSync(`${statePath}.bonjour-pids`, `${process.pid}\n`);
 if (args[0] === '-L') {
+  if (state.qrScan?.service === args[1] && state.qrBonjourOnly && !state.qrIgnore) {
+    console.log(`12:00:00.000  ${args[1]}._adb-tls-pairing._tcp.local. can be reached at phone.local.:37000 (interface 14)`);
+  }
   for (const s of state.bonjour?.[args[1]] ?? []) {
     console.log(`12:00:00.000  ${s.name ?? args[1]}._adb-tls-connect._tcp.local. can be reached at ${s.host}:${s.port} (interface 14)`);
   }

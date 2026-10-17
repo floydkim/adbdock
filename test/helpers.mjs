@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -37,4 +37,25 @@ export async function setup(t, devices = [{ serial: 'usb1' }, { serial: 'wifi1',
     async state() { return JSON.parse(await readFile(statePath, 'utf8')); },
     async setState(state) { await writeFile(statePath, JSON.stringify(state)); },
   };
+}
+
+export async function terminal(app, args, answers) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('/bin/sh', ['-c', 'cat | script -q /dev/null "$@"', 'pair-pty', process.execPath, cliPath, ...args], { env: app.env });
+    let stdout = '', stderr = '', next = 0;
+    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`Terminal test timed out: ${stdout}`)); }, 10000);
+    child.stdout.on('data', b => {
+      stdout += b;
+      if (next < answers.length && stdout.includes(answers[next][0])) {
+        const answer = answers[next++][1];
+        Promise.resolve(typeof answer === 'function' ? answer() : answer).then(value => {
+          child.stdin.write(value);
+          if (next === answers.length) child.stdin.end();
+        }).catch(error => { child.kill('SIGKILL'); reject(error); });
+      }
+    });
+    child.stderr.on('data', b => stderr += b);
+    child.once('error', reject);
+    child.once('exit', code => { clearTimeout(timer); resolve({ code, stdout, stderr }); });
+  });
 }

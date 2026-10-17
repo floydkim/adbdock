@@ -29,15 +29,15 @@ function bonjourOutput(args: string[], signal: AbortSignal): Promise<string> {
   });
 }
 
-export async function bonjourService(name: string, signal: AbortSignal): Promise<Service[]> {
+export async function bonjourService(name: string, signal: AbortSignal, type: '_adb-tls-connect._tcp' | '_adb-tls-pairing._tcp' = '_adb-tls-connect._tcp'): Promise<Service[]> {
   if (!/^[a-zA-Z0-9_-]+$/.test(name) || signal.aborted) return [];
-  const output = await bonjourOutput(['-L', name, '_adb-tls-connect._tcp', 'local'], signal);
+  const output = await bonjourOutput(['-L', name, type, 'local'], signal);
   const targets = new Map<string, { host: string; port: number }>();
   for (const line of output.split(/\r?\n/)) {
-    const match = /^\S+\s+(.+)\._adb-tls-connect\._tcp\.local\. can be reached at ([a-zA-Z0-9_.-]+\.local\.?):(\d+) \(interface \d+\)$/.exec(line);
-    if (!match || match[1] !== name) continue;
-    const host = match[2]!;
-    const port = Number(match[3]);
+    const match = /^\S+\s+(.+)\.(_adb-tls-(?:connect|pairing)\._tcp)\.local\. can be reached at ([a-zA-Z0-9_.-]+\.local\.?):(\d+) \(interface \d+\)$/.exec(line);
+    if (!match || match[1] !== name || match[2] !== type) continue;
+    const host = match[3]!;
+    const port = Number(match[4]);
     if (port >= 1 && port <= 65535) targets.set(`${host}:${port}`, { host, port });
   }
   const services = await mapLimit([...targets.values()], async ({ host, port }) => {

@@ -370,3 +370,22 @@ The original watcher PID 2731 and mappings remained active. Actual Android HTTP
 requests still reached Metro A for the emulator and Metro B for Flip4. The extra
 scratch config has no watcher or reverse rules to clean up; ADB trust is retained.
 App rendering/Fast Refresh was not rechecked for this pairing change.
+
+
+## QR pairing — 2026-10-17
+
+Added `pair --qr [--alias name]`: random per-run studio service/password,
+terminal QR, exact-session ADB/Bonjour discovery, scan timeout and cancellation.
+QR credentials go to adb stdin. Encoding uses qrcode-terminal 0.12.0; the CLI
+creates no QR files and saves no plaintext passwords. Seven CLI regressions cover
+matching-service selection, Bonjour, fresh credentials, timeout, cancellation,
+ambiguous endpoints and redacted failure messages. Existing code pairing remains.
+
+Actual Flip4 scan returned paired=true / connected=true and saved its verified
+hardware identity, wireless service and alias flip4 in a fresh scratch config.
+The phone scanned a PNG preview of the terminal encoder's exact matrix; terminal
+font/theme readability was not separately exercised. Existing trust was retained,
+and the test PNG was removed. Original watcher PID 2731, Metro mappings and actual
+Android-to-Metro HTTP for phone/emulator remained healthy. App rendering/Fast
+Refresh was not rechecked. Evidence: qr-real-result.json and qr-alias-checks.log /
+qr-alias-package-checks.log in scratch rn084-validation. Nothing was published.

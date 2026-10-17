@@ -1,7 +1,7 @@
 import { isIP } from 'node:net';
-import { createInterface } from 'node:readline';
-import { Writable } from 'node:stream';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { scanQr } from './qr.js';
+import { readLine } from './prompt.js';
 import { adb } from './adb.js';
 import { assignAlias, devices, remember } from './devices.js';
 import { CliError, result } from './output.js';
@@ -21,53 +21,40 @@ function endpoint(value: string): string {
   return value;
 }
 
-function readLine(prompt: string, hidden = false, piped = false): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const output = hidden ? new Writable({ write(_chunk, _encoding, done) { done(); } }) : process.stderr;
-    const reader = createInterface({ input: process.stdin, output, terminal: !piped });
-    const cancel = () => { reader.close(); };
-    process.once('SIGINT', cancel);
-    reader.once('SIGINT', cancel);
-    reader.once('close', () => {
-      process.removeListener('SIGINT', cancel);
-      process.stdin.pause();
-      reject(new CliError('PAIR_CANCELLED', 'Pairing input cancelled.', 130));
-    });
-    const answer = (line: string) => { resolve(line.trim()); reader.close(); if (hidden && !piped) process.stderr.write('\n'); };
-    if (piped) reader.once('line', answer);
-    else {
-      if (hidden) process.stderr.write(prompt);
-      reader.question(hidden ? '' : prompt, answer);
-    }
-  });
-}
-
-export async function pairDevice(options: { endpoint?: string; alias?: string; connect?: string; codeStdin: boolean }) {
+export async function pairDevice(options: { endpoint?: string; alias?: string; connect?: string; codeStdin: boolean; qr?: boolean; timeout?: number }) {
   let target = options.endpoint;
   if (target) endpoint(target);
   if (options.connect) endpoint(options.connect);
   if (options.alias !== undefined && !/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(options.alias)) {
     throw new CliError('INVALID_ARGUMENT', 'Alias must start with a letter and use letters, numbers, _ or - (up to 64 characters).', 2);
   }
-  if ((!process.stdin.isTTY && !options.codeStdin) || (options.codeStdin && !target)) {
+  if (!options.qr && ((!process.stdin.isTTY && !options.codeStdin) || (options.codeStdin && !target))) {
     throw new CliError('INVALID_ARGUMENT', 'Noninteractive pairing needs an explicit pairing endpoint and --code-stdin. Pass one six-digit code line on stdin.', 2);
   }
   // Read config before creating a trust relationship, without holding its lock during prompts.
   await readConfig();
-  if (!target) {
-    process.stderr.write('On your phone, open Wireless debugging > Pair device with pairing code.\n');
-    const services = await pairingServices();
-    if (!services.length) throw new CliError('PAIR_NOT_DISCOVERED', 'No code-pairing services found. Open the pairing screen or specify its IP:port.');
-    services.forEach((s, i) => process.stderr.write(`${i + 1}. ${s.name} (${s.endpoint})\n`));
-    const choice = services.length === 1 ? 1 : Number(await readLine('Choose a device number: '));
-    if (!Number.isInteger(choice) || choice < 1 || choice > services.length) throw new CliError('INVALID_ARGUMENT', 'Choose one of the listed device numbers.', 2);
-    target = services[choice - 1]!.endpoint;
+  let code: string;
+  if (options.qr) {
+    const scanned = await scanQr(options.timeout ?? 60_000);
+    target = scanned.endpoint;
+    code = scanned.password;
+  } else {
+    if (!target) {
+      process.stderr.write('On your phone, open Wireless debugging > Pair device with pairing code.\n');
+      const services = await pairingServices();
+      if (!services.length) throw new CliError('PAIR_NOT_DISCOVERED', 'No code-pairing services found. Open the pairing screen or specify its IP:port.');
+      services.forEach((s, i) => process.stderr.write(`${i + 1}. ${s.name} (${s.endpoint})\n`));
+      const choice = services.length === 1 ? 1 : Number(await readLine('Choose a device number: ', false, false, 'PAIR_CANCELLED'));
+      if (!Number.isInteger(choice) || choice < 1 || choice > services.length) throw new CliError('INVALID_ARGUMENT', 'Choose one of the listed device numbers.', 2);
+      target = services[choice - 1]!.endpoint;
+    }
+    code = await readLine(`Pairing code for ${target}: `, true, options.codeStdin, 'PAIR_CANCELLED');
+    if (!/^\d{6}$/.test(code)) throw new CliError('INVALID_ARGUMENT', 'Pairing code must contain six digits.', 2);
   }
-  const code = await readLine(`Pairing code for ${target}: `, true, options.codeStdin);
-  if (!/^\d{6}$/.test(code)) throw new CliError('INVALID_ARGUMENT', 'Pairing code must contain six digits.', 2);
-  const paired = await adb(['pair', target], 30_000, `${code}\n`);
+  const paired = await adb(['pair', target!], 30_000, `${code}\n`);
   if (paired.exitCode !== 0 || !paired.stdout.includes('Successfully paired to ')) {
-    throw new CliError('PAIR_FAILED', 'Pairing failed. Reopen the pairing-code screen and check its address and code.');
+    throw new CliError('PAIR_FAILED', options.qr ? 'Pairing failed. Run pair --qr again and scan the new QR.'
+      : 'Pairing failed. Reopen the pairing-code screen and check its address and code.');
   }
   const guid = /\[guid=([a-zA-Z0-9_-]+)\]/.exec(paired.stdout)?.[1];
   const pending = (message: string) => result({ paired: true, connected: false, pairingEndpoint: target, pairedGuid: guid }, [{ code: 'PAIR_CONNECTION_PENDING', message }]);

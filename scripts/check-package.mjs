@@ -27,7 +27,7 @@ try {
   const packed = JSON.parse((await exec('npm', ['pack', '--json', '--pack-destination', directory], { cwd: root, timeout: 60000 })).stdout)[0];
   controller.signal.throwIfAborted();
   const names = packed.files.map(file => file.path);
-  for (const name of ['package.json', 'README.md', 'LICENSE', 'dist/cli.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
+  for (const name of ['package.json', 'README.md', 'LICENSE', 'dist/cli.js', 'dist/pair.js', 'dist/qr.js', 'dist/prompt.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
   assert(names.every(name => ['package.json', 'README.md', 'LICENSE'].includes(name) || /^dist\/[^/]+\.js$/.test(name)), 'Unexpected package files');
   assert(packed.files.find(file => file.path === 'dist/cli.js').mode & 0o111, 'CLI is not executable');
   const tarball = path.join(directory, packed.filename);
@@ -41,8 +41,12 @@ try {
   assert.equal(manifest.scripts.prepare, undefined, 'Consumers must not run the TypeScript build during installation');
   await writeFile(env.FAKE_ADB_STATE, '{"devices":[]}');
   const help = JSON.parse((await exec(executable, ['--help', '--json'], { env, timeout: 20000 })).stdout);
-  assert(help.ok && help.data.includes('adbdock'));
+  assert(help.ok && help.data.includes('adbdock pair'));
   assert.deepEqual((await cli('devices')).data, []);
+  assert.deepEqual((await cli('pair', '--list')).data, []);
+  const qrScan = await exec(executable, ['pair', '--qr', '--timeout', '1', '--json'], { env, timeout: 20000 }).catch(error => error);
+  assert.equal(JSON.parse(qrScan.stdout).errors[0].code, 'PAIR_SCAN_TIMEOUT');
+  assert(qrScan.stderr.includes('Scan this QR'), 'Installed QR renderer did not run');
   assert((await cli('watch', '--background')).ok);
   controller.signal.throwIfAborted();
   assert.equal((await cli('stop')).data.state, 'stopped');
@@ -52,7 +56,7 @@ try {
   assert.equal(dryRun.name, manifest.name);
   controller.signal.throwIfAborted();
   console.log(JSON.stringify({ ok: true, name: packed.name, version: packed.version, files: names,
-    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed help and device query', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
+    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
 } finally {
   // Stop only the watcher created with this temporary configuration.
   if (installed) await cli('stop');

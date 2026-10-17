@@ -11,10 +11,14 @@ if (args[0] === 'devices') {
 } else if (args[0] === 'mdns') {
   if (state.mdnsFail) { console.error('mDNS unavailable'); process.exit(1); }
   console.log(state.mdns ?? 'List of discovered mdns services');
+  if (state.qrScan && !state.qrIgnore && !state.qrBonjourOnly) {
+    console.log(`${state.qrScan.service} _adb-tls-pairing._tcp 192.168.0.7:37000`);
+    if (state.qrAmbiguous) console.log(`${state.qrScan.service} _adb-tls-pairing._tcp 192.168.0.8:37000`);
+  }
 } else if (args[0] === 'pair') {
   let code = '';
   for await (const chunk of process.stdin) code += chunk;
-  if (code.trim() !== (state.pairCode ?? '123456') || state.pairFail) {
+  if (code.trim() !== (state.qrScan?.password ?? state.pairCode ?? '123456') || state.pairFail) {
     console.error(`Wrong pairing code: ${code.trim()}`); process.exit(1);
   }
   if (state.autoConnect) state.devices.push(state.autoConnect);

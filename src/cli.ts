@@ -17,6 +17,7 @@ Usage:
   adbdock pair [ip:pairing-port] [--alias <name>] [--connect <ip:connection-port>]
   adbdock pair <ip:pairing-port> --code-stdin [--json]
   adbdock pair --list [--json]
+  adbdock pair --qr [--alias <name>] [--timeout <milliseconds>]
   adbdock adb --device <device> [--device <device> ...] -- <adb command>
   adbdock adb --all [--json] -- <adb command>
   adbdock metro bind <device> --port <port> [--device-port <port>]
@@ -76,13 +77,18 @@ async function main() {
     return;
   }
   if (args[0] === 'pair') {
-    const parsed = options(args.slice(1), { list: { type: 'boolean' }, alias: { type: 'string' }, connect: { type: 'string' }, 'code-stdin': { type: 'boolean' } });
-    if (parsed.positionals.length > 1 || (parsed.values.list && (parsed.positionals.length || parsed.values.alias || parsed.values.connect || parsed.values['code-stdin']))) {
+    const parsed = options(args.slice(1), { list: { type: 'boolean' }, qr: { type: 'boolean' }, timeout: { type: 'string' }, alias: { type: 'string' }, connect: { type: 'string' }, 'code-stdin': { type: 'boolean' } });
+    if (parsed.positionals.length > 1 || (parsed.values.list && (parsed.positionals.length || parsed.values.alias || parsed.values.connect || parsed.values['code-stdin'] || parsed.values.qr || parsed.values.timeout))) {
       throw new CliError('INVALID_ARGUMENT', 'Use pair [ip:pairing-port] or pair --list.', 2);
     }
+    if ((parsed.values.qr && (parsed.positionals.length || parsed.values['code-stdin'])) || (parsed.values.timeout && !parsed.values.qr)) {
+      throw new CliError('INVALID_ARGUMENT', '--qr cannot use a pairing endpoint or --code-stdin. --timeout applies to QR scanning.', 2);
+    }
+    const timeout = Number(parsed.values.timeout ?? 60_000);
+    if (!Number.isInteger(timeout) || timeout < 1 || timeout > 300_000) throw new CliError('INVALID_ARGUMENT', '--timeout must be 1..300000 milliseconds.', 2);
     if (parsed.values.list) emit(result(await pairingServices()));
     else emit(await pairDevice({ endpoint: parsed.positionals[0], alias: parsed.values.alias as string | undefined,
-      connect: parsed.values.connect as string | undefined, codeStdin: Boolean(parsed.values['code-stdin']) }));
+      connect: parsed.values.connect as string | undefined, codeStdin: Boolean(parsed.values['code-stdin']), qr: Boolean(parsed.values.qr), timeout }));
     return;
   }
   if (args[0] === 'adb') {

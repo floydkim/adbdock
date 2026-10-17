@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { setup, cliPath } from './helpers.mjs';
+import { setup, cliPath, terminal } from './helpers.mjs';
 
 const pairing = '192.168.0.7:37000';
 const connection = '192.168.0.7:45000';
@@ -130,24 +130,6 @@ test('pair refuses unrelated or ambiguous connection services', async t => {
     assert.equal((await app.calls()).some(c => c[0] === 'connect'), false);
   }
 });
-
-async function terminal(app, args, answers) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('/bin/sh', ['-c', 'cat | script -q /dev/null "$@"', 'pair-pty', process.execPath, cliPath, ...args], { env: app.env });
-    let stdout = '', stderr = '', next = 0;
-    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`Terminal test timed out: ${stdout}`)); }, 10000);
-    child.stdout.on('data', b => {
-      stdout += b;
-      if (next < answers.length && stdout.includes(answers[next][0])) {
-        child.stdin.write(answers[next++][1]);
-        if (next === answers.length) child.stdin.end();
-      }
-    });
-    child.stderr.on('data', b => stderr += b);
-    child.once('error', reject);
-    child.once('exit', code => { clearTimeout(timer); resolve({ code, stdout, stderr }); });
-  });
-}
 
 test('interactive pair selects a discovered device and hides the typed code', { skip: process.platform !== 'darwin' }, async t => {
   const app = await scenario(t, { mdns: `adb-other _adb-tls-pairing._tcp 192.168.0.8:37000\n${mdns}` });

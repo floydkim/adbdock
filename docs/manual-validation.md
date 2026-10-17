@@ -47,7 +47,7 @@ The following remain to be checked with hardware and running RN projects:
 - [x] Different projects/Metro ports assigned to different devices
 - [ ] USB unplug/replug with recovery and no impact on other devices
 - [ ] Wireless reconnect after IP/port change and after wireless debugging toggle
-- [ ] Mac sleep/wake with automatic recovery
+- [x] Short Mac sleep/wake: process survival, Metro HTTP and post-wake repair (see below)
 - [x] Metro stop/restart, preserving the reverse rules (explicit RN Reload required)
 - [x] USB/Wi-Fi dual transport on the same real phone
 - [x] Correct project visible and actual Fast Refresh on every tested device
@@ -306,3 +306,67 @@ as available using command-local marketplace overrides without installation or
 user settings changes. Read-only review found no important issue. Actual plugin
 installation, new-session skill selection, Git hosting and public publication
 remain unverified/not performed. CLI and plugin instructions are not public yet.
+
+
+## Actual Mac sleep/wake — 2026-10-17
+
+The user disabled Vorssaint sleep prevention and put the Mac to sleep manually.
+macOS `pmset -g log` recorded software sleep at 15:02:43 +0900, a maintenance
+DarkWake at 15:03:14, maintenance sleep at 15:03:59, and user wake at 15:05:02.
+The two sleep intervals were 31 and 63 seconds, separated by 45 seconds of
+DarkWake. This was one short physical sleep/wake run, not a long-term test.
+
+Before and after: Galaxy Z Flip4 used Wi-Fi `192.168.219.106:37895`, device
+8081 → host 8082 (Metro B); emulator-5554 used device 8081 → host 8081
+(Metro A). Watcher PID 2731 and Metro PIDs 82788/9049 retained their original
+start times. Both devices remained online with the same reverse rules; actual
+Android HTTP requests returned 200 and the expected distinct Metro project-root
+headers. No manual reconnect, repair, watcher restart or Metro restart was used.
+
+To confirm that the surviving watcher was doing work after wake, removed only
+the emulator's managed tcp:8081 rule. It reappeared within 0.868 seconds of the
+post-removal polling start, and Android-to-Metro HTTP succeeded again. This is
+one observed repair time, not a timing guarantee. The deliberate rule removal
+was a separate post-wake check; the sleep itself did not require reconnection
+or tunnel repair, so sleep-triggered reconnect behavior was not exercised.
+
+Evidence: scratch `rn084-validation/sleep-before.json`, `sleep-after.json`,
+`sleep-power.log` and `sleep-post-wake-repair.json`. RN rendering/Fast Refresh
+was not rechecked in this run. Existing watcher, Metros and both mappings were
+left running. Long-running reliability remains open.
+
+
+## Guided wireless pairing — 2026-10-17
+
+Added `pair` discovery/interactive selection, hidden code input, explicit pairing
+and connection endpoints, optional alias, and JSON/stdin mode for agents. Codes
+are sent to adb stdin and omitted from argv, output and saved config. The phone
+pairing screen remains a required human step. Metro and watcher setup are separate.
+
+First Flip4 attempt paired successfully but reported connection pending when
+both the GUID property and ADB discovery were empty. Native Bonjour resolved the
+known service, exposing a gap in post-pair verification. Added exact-GUID Bonjour
+lookup and previously verified hardware/service association as fallbacks, while
+rejecting a live conflicting GUID and never treating USB alone as wireless success.
+
+After the fix, the actual Flip4 flow discovered its pairing screen, accepted a
+six-digit code with a leading zero without echoing it, and returned paired=true /
+connected=true. A fresh scratch config saved android:R3CW107212P, alias flip4 and
+adb-R3CW107212P-MvgZG5, without Metro mappings or a watcher. This re-paired an
+already trusted phone; existing trust was not deleted, so first-ever trust on a
+previously unpaired phone was not separately exercised. No QR flow was added.
+
+Review found two further boundaries: discovery errors after trust creation must
+preserve paired=true and allow explicit --connect; a slow connect must always be
+followed by device verification even after the polling window expires. Both were
+reproduced with regression tests before fixing. Final typecheck and all 71 tests
+passed, including macOS PTY selection/code hiding/Ctrl+C, partial success, GUID
+mismatch, Bonjour fallback, alias conflicts and delayed connection verification.
+Package check installed the 17-file tarball, ran installed pairing discovery,
+watcher lifecycle, npm exec and publish dry-run; nothing was published.
+
+Evidence: scratch pair-real-result.json, pair-checks.log and pair-package-checks.log.
+The original watcher PID 2731 and mappings remained active. Actual Android HTTP
+requests still reached Metro A for the emulator and Metro B for Flip4. The extra
+scratch config has no watcher or reverse rules to clean up; ADB trust is retained.
+App rendering/Fast Refresh was not rechecked for this pairing change.

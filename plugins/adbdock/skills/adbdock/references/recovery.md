@@ -10,6 +10,8 @@ Read JSON errors and the relevant config home's `watch.log`; default home is
 `~/Library/Application Support/adbdock`. Distinguish device availability, reverse
 state, host Metro status and actual app behavior (`app: unknown` is not UI evidence).
 
+- `AMBIGUOUS_DEVICE`: inspect current devices and select the intended target. Do not substitute `--all` unless every online device is intended.
+- For partial command failures, inspect `data[].exitCode` and `errors[].deviceId`. Before retrying a mutation, check affected devices; do not rerun successful targets because another one failed.
 - `WIRELESS_NOT_DISCOVERED`: check wireless debugging, pairing and discovery. macOS Bonjour supplements missing ADB discovery for saved service names. Repeating a stale saved IP or killing the global ADB server is not the recovery plan.
 - `WIRELESS_AMBIGUOUS` / `REVERSE_CONFLICT`: inspect ownership and current endpoints; do not overwrite to make the error disappear.
 - `WATCH_RUNNING`: reuse the existing watcher. `watch stop` affects every mapping in that config home, so stop only a watcher owned by this task or explicitly authorized to stop.

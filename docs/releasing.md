@@ -92,7 +92,7 @@ next release, select a new version; published name/version pairs cannot be reuse
 ## Git-based skills plugin
 
 The npm package remains CLI-only. `plugins/adbdock/` is an instruction-only
-plugin with one shared skill and three on-demand references. Its root plugin.json
+plugin with one shared skill and four on-demand references. Its root plugin.json
 uses the portable Codex format; .claude-plugin/plugin.json supports Claude Code.
 The repository's two marketplace catalogs both point to that same directory.
 

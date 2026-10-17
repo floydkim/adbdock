@@ -38,7 +38,14 @@ if (args[0] === 'devices') {
       const ports = command.filter(arg => arg.startsWith('tcp:'));
       device.reverse[ports[0]] = ports[1];
     }
-    writeFileSync(statePath, JSON.stringify(state));
+    if (command[1] !== '--list') writeFileSync(statePath, JSON.stringify(state));
+  } else if (command[0] === 'shell' && command.join(' ').includes('toybox nc')) {
+    if (device.probeFail) { console.error('probe failed'); process.exit(1); }
+    if (device.probeHang) { await new Promise(resolve => setTimeout(resolve, 3000)); }
+    const port = /127\.0\.0\.1 (\d+)/.exec(command.join(' '))?.[1];
+    const target = device.reverse?.[`tcp:${port}`]?.replace('tcp:', '');
+    const response = await fetch(`http://127.0.0.1:${target}/probe`);
+    console.log(await response.text());
   } else if (device.hang) {
     setTimeout(() => {}, 60_000);
   } else if (device.fail) {

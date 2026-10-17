@@ -18,6 +18,8 @@
     "build": "tsc && chmod +x dist/cli.js",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test test/*.test.mjs",
+    "check": "npm run typecheck && npm test",
+    "test:devices": "npm run build && node scripts/test-devices.mjs",
     "prepare": "npm run build"
   },
   "devDependencies": {

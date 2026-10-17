@@ -240,3 +240,38 @@ existing desired mappings remain active. This establishes one successful physica
 handoff using native Bonjour under a deliberately empty ADB discovery result;
 it does not establish behavior on every network, actual IP-address changes,
 Mac sleep/wake or long-running reliability. No commit has been made yet.
+
+
+## Follow-up: repeatable device regression automation
+
+Added `npm run check` (typecheck plus all CLI tests) and opt-in
+`npm run test:devices -- --device <serial> ...`. The runner has no external runtime
+dependency. It uses its own config, watcher, local HTTP servers and a temporary
+reverse port, and selects only explicit live serials (one per physical device).
+Android-initiated HTTP responses must contain the intended server's unique
+marker, independently of the host Metro-status response.
+
+All 53 boundary tests and typecheck passed. Added runner coverage for success,
+required explicit targets, failed device HTTP probes, SIGINT during a probe, and
+interruption after watcher startup or reverse creation but before their CLI
+responses. The latter two initially exposed cleanup races during review; the
+bind regression was observed failing with a remaining tunnel, then passed after
+waiting for finite CLI commands and checking/removing own remaining rules.
+Read-only review confirmed the two fixes and independently reran both regressions.
+
+Executed the final runner against the existing Pixel emulator and Wi-Fi Galaxy:
+all six checks passed (aliases/commands without Metro, shared and separate host
+ports, watcher restoration, server stop/restart, external conflict preservation).
+The JSON report recorded cleanup.ok=true and its temporary config was removed.
+The original 8081 → 8081 emulator and 8081 → 8082 Galaxy rules, both Metros and
+original watcher were verified unchanged afterward. An initial real-device probe
+failed because toybox nc exited on stdin EOF before sending; keeping stdin open
+briefly fixed the probe, and cleanup preserved the original environment even on
+that failed run.
+
+`docs/testing.md` contains a reusable human/LLM runbook. It distinguishes these
+HTTP tunnel tests from real RN rendering and state-preserving Fast Refresh,
+provides RN source/port/debug-host setup and evidence requirements, and separates
+human USB/sleep actions from automated checks. Sleep remains deferred and
+long-running stability will be evaluated during real work. This automation run
+did not reinstall the RN app or repeat every RN UI scenario.

@@ -132,7 +132,20 @@ The service/GUID behavior follows the [Android ADB Wi-Fi architecture](https://a
 
 ## Verification and limits
 
-Run `npm test` and `npm run typecheck`. See [validation record](docs/manual-validation.md)
+Run `npm run check` for type checking and isolated CLI regression tests. For an
+opt-in real-device check, pass explicit ADB serials:
+
+```sh
+npm run test:devices -- --device <serial-a> --device <serial-b>
+```
+
+This uses temporary configuration and reverse ports, local HTTP probe servers,
+and its own watcher. It verifies Android-to-host traffic, shared/separate ports,
+repair and conflict handling, and writes a JSON report under `.test-results/`.
+It does not install an app or verify RN Fast Refresh. See the
+[test runbook](docs/testing.md) for automation, RN/LLM scenarios and cleanup.
+
+See [validation record](docs/manual-validation.md)
 for scenario coverage and pending checks. RN 0.84.1 was tested on an Android 16
 emulator and a Galaxy Z Flip4 over Wi-Fi: shared/separate Metros, state-preserving
 Fast Refresh, missing-tunnel recovery and wireless ADB reconnect. These are short

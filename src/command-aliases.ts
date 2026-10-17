@@ -4,9 +4,9 @@ import { readConfig, saveConfig, withConfig } from './store.js';
 import type { Config } from './store.js';
 
 const defaults: Record<string, string> = {
-  shake: 'adb shell input keyevent 82',
+  menu: 'adb shell input keyevent 82',
   reverse: 'if [ "$#" -gt 0 ]; then adb reverse "tcp:${2:-8081}" "tcp:${1:-8081}"; else for ports in $ADBDOCK_REVERSE_PORTS; do adb reverse "tcp:${ports%:*}" "tcp:${ports#*:}" || exit; done; fi',
-  screencap: "file=\"${ADBDOCK_DEVICE}-${ADBDOCK_RUN_ID}.png\"\ndisplay=$(adb shell dumpsys SurfaceFlinger --display-id | sed -n 's/^Display \\([0-9][0-9]*\\).*/\\1/p' | head -n 1)\nif [ -n \"$display\" ]; then set -- -d \"$display\"; else set --; fi\nadb exec-out screencap -p \"$@\" > \"$file\" && printf '%s\\n' \"$file\"",
+  screenshot: "file=\"${ADBDOCK_DEVICE}-${ADBDOCK_RUN_ID}.png\"\ndisplay=$(adb shell dumpsys SurfaceFlinger --display-id | sed -n 's/^Display \\([0-9][0-9]*\\).*/\\1/p' | head -n 1)\nif [ -n \"$display\" ]; then set -- -d \"$display\"; else set --; fi\nadb exec-out screencap -p \"$@\" > \"$file\" && printf '%s\\n' \"$file\"",
 };
 
 export function getCommandAliases(config: Config): Record<string, string> {

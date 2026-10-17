@@ -153,7 +153,7 @@ Commands:
 
 Without a subcommand, choose an alias to edit/delete in a terminal.
 Scripts and --json get a read-only list instead.
-Built-ins: shake, reverse and screencap. Deleted presets stay deleted.
+Built-ins: menu, reverse and screenshot. Deleted presets stay deleted.
 The table shows shortened previews. Select an entry to read its full script.
 
 Examples:
@@ -188,7 +188,7 @@ Variables available at execution:
   $1, $2           Arguments supplied after -- when running an alias.
 
 Examples:
-  adbdock adb-alias add shake 'adb shell input keyevent 82'
+  adbdock adb-alias add menu 'adb shell input keyevent 82'
   adbdock adb-alias add files 'adb shell ls "$1"'
   adbdock @files -d phone -- /sdcard
 `,
@@ -214,8 +214,8 @@ Requires a terminal. Shows the current script; Enter keeps it unchanged.
 Confirm before saving a replacement. For automation use add --force.
 
 Examples:
-  adbdock adb-alias edit screencap
-  adbdock adb-alias add shake 'adb shell input keyevent 82' --force
+  adbdock adb-alias edit screenshot
+  adbdock adb-alias add menu 'adb shell input keyevent 82' --force
 `,
   'adb-alias remove': `adbdock adb-alias remove — Delete one saved command
 
@@ -225,7 +225,7 @@ Usage:
 Built-in presets can be removed too and will not reappear automatically.
 
 Examples:
-  adbdock adb-alias remove screencap
+  adbdock adb-alias remove screenshot
   adbdock adb-alias list
 `,
   '@command': `adbdock @<name> — Run a saved command for selected devices
@@ -245,13 +245,13 @@ Options:
     Pass remaining arguments to the script as $1, $2 and so on.
 
 Defaults:
-  shake
+  menu
     Send keyevent 82 to open the RN developer menu.
   reverse
     Without arguments, apply each device's saved Metro mappings, or 8081 to 8081.
     With arguments, $1 is host port; $2 is device port (default 8081).
     Manual reverse does not update saved Metro mappings.
-  screencap
+  screenshot
     Save a PNG in this directory using device name and a unique run ID.
 
 Commands run up to four devices at a time; failures are reported per device.
@@ -259,9 +259,9 @@ Timeout or Ctrl+C terminates owned shell/child jobs. Mutations are not retried.
 Use unique file paths in custom scripts; timestamps alone may collide.
 
 Examples:
-  adbdock @shake -d phone -d emulator
+  adbdock @menu -d phone -d emulator
   adbdock @reverse -d phone -- 8082
-  adbdock @screencap --all
+  adbdock @screenshot --all
 `,
   metro: `adbdock metro — Configure device-to-Metro connections
 

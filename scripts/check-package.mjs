@@ -44,7 +44,7 @@ try {
   assert(help.ok && help.data.includes('adbdock pair'));
   assert((await cli('metro', 'bind', '--help')).data.includes('--device-port'));
   assert.deepEqual((await cli('devices')).data, []);
-  assert.deepEqual((await cli('adb-alias', 'list')).data.map(a => a.name), ['shake', 'reverse', 'screencap']);
+  assert.deepEqual((await cli('adb-alias', 'list')).data.map(a => a.name), ['menu', 'reverse', 'screenshot']);
   await writeFile(env.FAKE_ADB_STATE, JSON.stringify({ devices: [{ serial: 'package-test' }] }));
   assert((await cli('adb-alias', 'add', 'probe', 'adb shell echo alias-probe')).ok);
   const aliasResult = await cli('@probe', '-d', 'package-test');

@@ -7,8 +7,8 @@ its adb function pins every invocation to the chosen serial and accepts only
 finite device commands, plus exec-out for binary file redirection. Host shell
 operators and tools (open, redirects) operate on the Mac once per selected device.
 
-Defaults: shake (keyevent 82), reverse (saved mappings or 8081:8081; explicit host $1/device $2 override),
-screencap (unique PNG and printed path). Environment: ADBDOCK_DEVICE/MODEL are
+Defaults: menu (keyevent 82), reverse (saved mappings or 8081:8081; explicit host $1/device $2 override),
+screenshot (unique PNG and printed path). Environment: ADBDOCK_DEVICE/MODEL are
 filename-safe; ADBDOCK_SERIAL is raw target; ADBDOCK_RUN_ID is timestamp+UUID per
 device. Script parameters after -- become $1 etc. Registration uses single quotes.
 

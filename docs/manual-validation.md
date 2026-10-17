@@ -469,4 +469,6 @@ README and existing bilingual packaging edits remain outside this feature commit
 
 
 The default screenshot command alias was subsequently renamed to `screencap`
-to match ADB terminology; current usage is `adbdock @screencap -d <device>`.
+to match ADB terminology.
+The presets were then renamed to `menu` (formerly `shake`) and `screenshot`
+(formerly `screencap`); current usage is `adbdock @screenshot -d <device>`.

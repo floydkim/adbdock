@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "adbdock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Use adbdock for Android device selection, multi-device checks and optional Metro recovery.",
   "license": "MIT",
   "author": {

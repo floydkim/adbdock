@@ -389,3 +389,25 @@ and the test PNG was removed. Original watcher PID 2731, Metro mappings and actu
 Android-to-Metro HTTP for phone/emulator remained healthy. App rendering/Fast
 Refresh was not rechecked. Evidence: qr-real-result.json and qr-alias-checks.log /
 qr-alias-package-checks.log in scratch rn084-validation. Nothing was published.
+
+
+## Interactive device aliases — 2026-10-17
+
+Added `alias` / `alias <device>` prompts with current aliases, models, connection
+states and saved offline devices. Enter preserves the current name. Explicit
+`alias <device> <name>` remains available for scripts and agents. Prompts do not
+hold the config lock; saving rechecks conflicts using the selected stable ID.
+Review reproduced another task moving the original alias to another phone while
+the prompt was open. A failing PTY regression preceded the fix pinning hardware
+identity before input. Eight new alias tests cover selection, rename/binding
+preservation, offline selection, cancellation, conflicts, invalid selection,
+noninteractive use and concurrent alias reassignment.
+
+Actual phone/emulator list validation selected Flip4, renamed flip4 to flip4probe
+in a scratch config and restored flip4 afterward. The original watcher and Metro
+mappings stayed ready. Combined typecheck and all 86 tests passed, as did the
+production-only package install, QR rendering/timeout, watcher lifecycle, npm exec
+and publish dry-run. The workspace tarball included the pending bilingual READMEs;
+README changes remain outside these feature commits. No package was published.
+Evidence: qr-alias-checks.log and qr-alias-package-checks.log in scratch
+rn084-validation. Actual QR scan evidence is recorded above.

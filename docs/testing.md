@@ -231,3 +231,5 @@ Android 11 이상 폰의 페어링 코드 화면을 사용자가 연다. 기존 
 QR 검증은 `adbdock pair --qr --alias <name>` 실행 후 사용자가 폰의 무선 디버깅
 QR 스캐너로 스캔한다. 60초 제한은 `--timeout <ms>`로 조정할 수 있다. QR 자체는
 일시적인 인증 정보이므로 검증 기록에는 QR 대신 최종 paired/connected와 등록 결과를 남긴다.
+`adbdock alias`에서 기기 선택·신규 이름·현재 이름 변경·오프라인 기기·취소를 확인한다.
+기존 명령형 alias와 Metro 매핑이 유지되어야 한다.

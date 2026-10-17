@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { CliError, print, result } from './output.js';
 import { parseArgs } from 'node:util';
-import { assignAlias, devices, remember, resolveDevice, selectDevices } from './devices.js';
+import { devices, remember, resolveDevice, selectDevices } from './devices.js';
 import { isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
 import { applyBinding, problem, removeBinding, repairBindings } from './link.js';
+import { configureAlias } from './alias.js';
 import { pairDevice, pairingServices } from './pair.js';
 import { status } from './status.js';
 import { runWatcher, startBackground, stopWatcher, watcherInfo } from './daemon.js';
@@ -13,7 +14,7 @@ const help = `adbdock — multi-device ADB, optional Metro recovery
 
 Usage:
   adbdock devices [--json]
-  adbdock alias <device> <name>
+  adbdock alias [device] [name]
   adbdock pair [ip:pairing-port] [--alias <name>] [--connect <ip:connection-port>]
   adbdock pair <ip:pairing-port> --code-stdin [--json]
   adbdock pair --list [--json]
@@ -62,18 +63,8 @@ async function main() {
   }
   if (args[0] === 'alias') {
     const parsed = options(args.slice(1));
-    const [target, name] = parsed.positionals;
-    if (!target || !name || parsed.positionals.length !== 2 || !/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name)) {
-      throw new CliError('INVALID_ARGUMENT', 'Usage: adbdock alias <device> <name>; names start with a letter and use letters, numbers, _ or -.', 2);
-    }
-    const saved = await withConfig(async config => {
-      const live = await devices(config);
-      const device = resolveDevice(target, live, config);
-      const saved = assignAlias(config, device, live, name);
-      await saveConfig(config);
-      return saved;
-    });
-    print(result(saved), json);
+    if (parsed.positionals.length > 2) throw new CliError('INVALID_ARGUMENT', 'Usage: adbdock alias [device] [name].', 2);
+    print(result(await configureAlias(parsed.positionals[0], parsed.positionals[1])), json);
     return;
   }
   if (args[0] === 'pair') {

@@ -65,7 +65,7 @@ Android 요청 시 stdin을 잠시 유지하는 것은 toybox nc가 전송 전�
 `adb kill-server`를 사용하지 않는다.
 
 ```sh
-ADBDOCK_HOME=<REPORT_CONFIG_HOME> node dist/cli.js stop
+ADBDOCK_HOME=<REPORT_CONFIG_HOME> node dist/cli.js watch stop
 ADBDOCK_HOME=<REPORT_CONFIG_HOME> node dist/cli.js metro unbind <smoke-alias> --device-port <REPORT_DEVICE_PORT>
 adb -s <CURRENT_SERIAL> reverse --list
 ```
@@ -164,7 +164,7 @@ A host 8081, B host 8082, 각 device 18081. 이미 사용 중이면 바꾼다.
 ```sh
 node dist/cli.js metro bind <ALIAS_A> --port 8081 --device-port 18081
 node dist/cli.js metro bind <ALIAS_B> --port 8081 --device-port 18081
-node dist/cli.js watch --background
+node dist/cli.js watch start --background
 node dist/cli.js status --json
 ```
 

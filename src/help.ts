@@ -19,10 +19,7 @@ Commands:
     Configure and repair device-to-Metro connections.
 
   adbdock watch
-    Reconnect remembered phones and restore saved tunnels.
-
-  adbdock stop
-    Stop the connection watcher.
+    Start, inspect or stop the connection watcher.
 
   adbdock status
     Check devices, Metro connections and watcher status.
@@ -31,7 +28,7 @@ Examples:
   adbdock devices
   adbdock alias
   adbdock pair --qr
-  adbdock watch --background
+  adbdock watch start --background
 
 For options and more examples:
   adbdock pair --help
@@ -215,12 +212,49 @@ Examples:
   adbdock metro repair --device phone
   adbdock metro repair --all
 
-For continuous recovery, run adbdock watch --background.
+For continuous recovery, run adbdock watch start --background.
 `,
-  watch: `adbdock watch — Keep saved connections working
+  watch: `adbdock watch — Start and manage connection recovery
+
+Commands:
+  adbdock watch start
+    Reconnect remembered phones and restore saved Metro tunnels.
+
+  adbdock watch stop
+    Stop watching; keep saved settings and current tunnels.
+
+  adbdock watch status
+    Show only this configuration's watcher state.
+
+Running adbdock watch without a subcommand starts it in this terminal.
+Ctrl+C stops a foreground watcher. Start with --background to close the terminal.
+Use adbdock status for device and Metro health as well as watcher state.
+
+Examples:
+  adbdock watch start --background
+  adbdock watch status
+  adbdock watch stop
+  adbdock watch
+
+Run adbdock watch start --help for startup options.
+`,
+  'watch status': `adbdock watch status — Inspect this configuration's watcher
 
 Usage:
-  adbdock watch [--background] [--interval <milliseconds>]
+  adbdock watch status [--json]
+
+Shows whether the watcher is running, including its PID.
+This command does not query ADB, start a watcher or check Metro connections.
+Use adbdock status for the full device and Metro report.
+
+Examples:
+  adbdock watch status
+  adbdock watch status --json
+`,
+  'watch start': `adbdock watch start — Keep saved connections working
+
+Usage:
+  adbdock watch start [--background] [--interval <milliseconds>]
 
 Reconnects remembered wireless devices and restores saved Metro tunnels.
 It also reconnects remembered phones without Metro mappings.
@@ -235,22 +269,22 @@ Options:
     Failed operations back off up to 30 seconds.
 
 Examples:
-  adbdock watch --background
+  adbdock watch start --background
   adbdock watch
 
-Use adbdock status to inspect the watcher and adbdock stop to stop it.
+Use adbdock watch status to inspect the watcher and watch stop to stop it.
 Rebooting the Mac requires starting the watcher again.
 `,
-  stop: `adbdock stop — Stop this configuration's watcher
+  'watch stop': `adbdock watch stop — Stop this configuration's watcher
 
 Usage:
-  adbdock stop
+  adbdock watch stop
 
 Saved aliases, Metro mappings and existing reverse tunnels remain intact.
 Only ongoing monitoring and automatic recovery stop.
 
 Examples:
-  adbdock stop
+  adbdock watch stop
   adbdock status
 `,
   status: `adbdock status — Check connections and the watcher
@@ -273,7 +307,7 @@ export function helpFor(args: string[]): string | undefined {
   if (!requested) return;
   const command = args[0]?.startsWith('-') ? '' : args[0] ?? '';
   if (!command) return overview;
-  const topic = command === 'metro' && args[1] && !args[1].startsWith('-') ? `metro ${args[1]}` : command;
+  const topic = (command === 'metro' || command === 'watch') && args[1] && !args[1].startsWith('-') ? `${command} ${args[1]}` : command;
   const text = details[topic];
   if (typeof text !== 'string') throw new CliError('INVALID_ARGUMENT', `No help for '${topic}'. Run adbdock --help.`, 2);
   return `${text}

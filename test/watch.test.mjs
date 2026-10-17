@@ -17,7 +17,7 @@ test('background watch restores a missing tunnel and stop preserves it', async t
   const app = await setup(t, [{ serial: 'usb1' }]);
   await app.run('metro', 'bind', 'usb1', '--port', '8082');
   await app.setState({ devices: [{ serial: 'usb1' }] });
-  t.after(() => app.run('stop', '--json'));
+  t.after(() => app.run('watch', 'stop', '--json'));
   const start = await app.run('watch', '--background', '--interval', '100', '--json');
   assert.equal(start.code, 0, start.stdout);
   assert.ok(JSON.parse(start.stdout).data.pid);
@@ -25,7 +25,7 @@ test('background watch restores a missing tunnel and stop preserves it', async t
   const duplicate = await app.run('watch', '--background', '--json');
   assert.equal(duplicate.code, 4);
   assert.equal(JSON.parse(duplicate.stdout).errors[0].code, 'WATCH_RUNNING');
-  assert.equal((await app.run('stop', '--json')).code, 0);
+  assert.equal((await app.run('watch', 'stop', '--json')).code, 0);
   assert.equal((await app.state()).devices[0].reverse['tcp:8081'], 'tcp:8082');
 });
 
@@ -49,7 +49,7 @@ test('foreground watch recovers after reconnect and exits on SIGINT', async t =>
 test('watch respects mapping changes while running', async t => {
   const app = await setup(t, [{ serial: 'usb1' }]);
   await app.run('metro', 'bind', 'usb1', '--port', '8081');
-  t.after(() => app.run('stop', '--json'));
+  t.after(() => app.run('watch', 'stop', '--json'));
   assert.equal((await app.run('watch', '--background', '--interval', '100', '--json')).code, 0);
   const changed = await app.run('metro', 'bind', 'usb1', '--port', '8083', '--json');
   assert.equal(changed.code, 0, changed.stdout);
@@ -61,7 +61,7 @@ test('watch does not overwrite a conflicting external tunnel', async t => {
   const app = await setup(t, [{ serial: 'usb1' }]);
   await app.run('metro', 'bind', 'usb1', '--port', '8081');
   await app.setState({ devices: [{ serial: 'usb1', reverse: { 'tcp:8081': 'tcp:9999' } }] });
-  t.after(() => app.run('stop', '--json'));
+  t.after(() => app.run('watch', 'stop', '--json'));
   assert.equal((await app.run('watch', '--background', '--interval', '100', '--json')).code, 0);
   await delay(400);
   assert.equal((await app.state()).devices[0].reverse['tcp:8081'], 'tcp:9999');
@@ -69,7 +69,7 @@ test('watch does not overwrite a conflicting external tunnel', async t => {
 
 test('stop without an active watcher does not signal any process', async t => {
   const app = await setup(t);
-  const output = await app.run('stop', '--json');
+  const output = await app.run('watch', 'stop', '--json');
   assert.equal(output.code, 0);
   assert.equal(JSON.parse(output.stdout).data.state, 'stopped');
 });
@@ -78,7 +78,7 @@ test('simultaneous watcher starts elect exactly one process', async t => {
   const app = await setup(t, []);
   const outputs = await Promise.all([app.run('watch', '--background', '--json'), app.run('watch', '--background', '--json')]);
   assert.deepEqual(outputs.map(r => r.code).sort(), [0, 4]);
-  assert.equal((await app.run('stop', '--json')).code, 0);
+  assert.equal((await app.run('watch', 'stop', '--json')).code, 0);
 });
 
 test('background startup reports a missing adb executable', async t => {
@@ -98,5 +98,36 @@ test('a crashed watcher can restart after its lease expires', async t => {
   const second = await app.run('watch', '--background', '--json');
   assert.equal(second.code, 0, second.stdout);
   assert.notEqual(JSON.parse(second.stdout).data.pid, first.data.pid);
-  assert.equal((await app.run('stop', '--json')).code, 0);
+  assert.equal((await app.run('watch', 'stop', '--json')).code, 0);
+});
+
+test('watch subcommands start, inspect and stop one watcher', async t => {
+  const app = await setup(t, []);
+  const started = await app.run('watch', 'start', '--background', '--json');
+  assert.equal(started.code, 0, started.stdout);
+  const pid = JSON.parse(started.stdout).data.pid;
+  const state = await app.run('watch', 'status', '--json');
+  assert.equal(state.code, 0, state.stdout);
+  assert.equal(JSON.parse(state.stdout).watcher.pid, pid);
+  assert((await app.run('watch', 'status')).stdout.includes(`Watcher: watching (pid ${pid})`));
+  assert.equal((await app.run('watch', 'stop', '--json')).code, 0);
+  assert.equal(JSON.parse((await app.run('watch', 'status', '--json')).stdout).watcher, null);
+});
+
+test('watch status works without ADB and does not start a watcher', async t => {
+  const app = await setup(t, []);
+  app.env.ADBDOCK_ADB = `${app.directory}/missing-adb`;
+  const output = await app.run('watch', 'status', '--json');
+  assert.equal(output.code, 0, output.stdout);
+  assert.equal(JSON.parse(output.stdout).watcher, null);
+  assert.match((await app.run('watch', 'status')).stdout, /Watcher: stopped/);
+});
+
+test('watch control rejects start options and unknown subcommands', async t => {
+  const app = await setup(t, []);
+  for (const args of [['watch', 'status', '--background'], ['watch', 'stop', '--interval', '100'], ['watch', 'missing'], ['stop']]) {
+    const output = await app.run(...args, '--json');
+    assert.equal(output.code, 2, `${args}: ${output.stdout}`);
+  }
+  assert.deepEqual(await app.calls(), []);
 });

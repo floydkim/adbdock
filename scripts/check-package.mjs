@@ -48,9 +48,11 @@ try {
   const qrScan = await exec(executable, ['pair', '--qr', '--timeout', '1', '--json'], { env, timeout: 20000 }).catch(error => error);
   assert.equal(JSON.parse(qrScan.stdout).errors[0].code, 'PAIR_SCAN_TIMEOUT');
   assert(qrScan.stderr.includes('Scan this QR'), 'Installed QR renderer did not run');
-  assert((await cli('watch', '--background')).ok);
+  const watching = await cli('watch', 'start', '--background');
+  assert(watching.ok);
+  assert.equal((await cli('watch', 'status')).watcher.pid, watching.data.pid);
   controller.signal.throwIfAborted();
-  assert.equal((await cli('stop')).data.state, 'stopped');
+  assert.equal((await cli('watch', 'stop')).data.state, 'stopped');
   const oneOff = JSON.parse((await exec('npm', ['exec', '--yes', '--package', tarball, '--', 'adbdock', '--help', '--json'], { env, cwd: directory, timeout: 120000 })).stdout);
   assert(oneOff.ok && oneOff.data.includes('adbdock'));
   const dryRun = JSON.parse((await exec('npm', ['publish', tarball, '--dry-run', '--ignore-scripts', '--json'], { cwd: directory, timeout: 60000 })).stdout);
@@ -60,7 +62,7 @@ try {
     bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
 } finally {
   // Stop only the watcher created with this temporary configuration.
-  if (installed) await cli('stop');
+  if (installed) await cli('watch', 'stop');
   await rm(directory, { recursive: true, force: true });
   process.removeListener('SIGINT', interrupt);
   process.removeListener('SIGTERM', interrupt);

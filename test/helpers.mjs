@@ -17,7 +17,7 @@ export async function setup(t, devices = [{ serial: 'usb1' }, { serial: 'wifi1',
     ADBDOCK_ADB: new URL('./fixtures/fake-adb.mjs', import.meta.url).pathname,
     FAKE_ADB_STATE: statePath };
   t.after(async () => {
-    await exec(process.execPath, [cliPath, 'stop', '--json'], { env, timeout: 5000 }).catch(() => {});
+    await exec(process.execPath, [cliPath, 'watch', 'stop', '--json'], { env, timeout: 5000 }).catch(() => {});
     await rm(directory, { recursive: true, force: true });
   });
   return {

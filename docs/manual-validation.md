@@ -411,3 +411,21 @@ and publish dry-run. The workspace tarball included the pending bilingual README
 README changes remain outside these feature commits. No package was published.
 Evidence: qr-alias-checks.log and qr-alias-package-checks.log in scratch
 rn084-validation. Actual QR scan evidence is recorded above.
+
+
+## Watcher lifecycle commands — 2026-10-17
+
+Added `watch start`, `watch stop` and `watch status`. Bare `watch` retains
+foreground startup, including existing startup flags. Top-level `stop` is removed.
+Global `status` continues to inspect devices/Metro/watcher; `watch status` uses
+only watcher IPC and supports plain output and the existing JSON watcher field.
+Watcher daemon IPC itself is unchanged, so the existing PID 2731 remained visible
+without restarting or stopping it.
+
+Migrated test teardown, device-runner cleanup, installed package checks and active
+human/agent guides to `watch stop`. Typecheck and all 93 tests passed; focused
+checks also verified plain running/stopped output and status without an ADB binary.
+Package install verified start/status/stop, cleanup, QR/help, npm exec and publish
+dry-run. Read-only review found no remaining important issue. No package was
+published. Evidence: watch-subcommands-checks.log and
+watch-subcommands-package-checks.log in scratch rn084-validation.

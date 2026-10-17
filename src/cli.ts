@@ -87,16 +87,20 @@ async function main() {
     return;
   }
   if (args[0] === 'watch') {
-    const parsed = options(args.slice(1), { background: { type: 'boolean' }, interval: { type: 'string' } });
+    const command = args[1] && !args[1].startsWith('-') ? args[1] : 'start';
+    const input = args.slice(args[1] === command ? 2 : 1);
+    if (command === 'stop' || command === 'status') {
+      if (options(input).positionals.length) throw new CliError('INVALID_ARGUMENT', `watch ${command} takes no positional arguments.`, 2);
+      if (command === 'stop') emit(result(await stopWatcher()));
+      else print({ ...result(null), watcher: await watcherInfo() }, json);
+      return;
+    }
+    if (command !== 'start') throw new CliError('INVALID_ARGUMENT', 'Expected watch start, stop or status.', 2);
+    const parsed = options(input, { background: { type: 'boolean' }, interval: { type: 'string' } });
     const interval = Number(parsed.values.interval ?? 2000);
     if (parsed.positionals.length || !Number.isInteger(interval) || interval < 100 || interval > 60_000) throw new CliError('INVALID_ARGUMENT', '--interval must be 100..60000 milliseconds.', 2);
     if (parsed.values.background) emit(result(await startBackground(interval)));
     else await runWatcher(interval, info => emit(result(info)));
-    return;
-  }
-  if (args[0] === 'stop') {
-    if (options(args.slice(1)).positionals.length) throw new CliError('INVALID_ARGUMENT', 'stop takes no positional arguments.', 2);
-    emit(result(await stopWatcher()));
     return;
   }
   if (args[0] === 'metro') {

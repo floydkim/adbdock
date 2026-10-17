@@ -5,7 +5,8 @@ adbdock metro bind <a> --port <host-port> --device-port <device-port>
 adbdock metro bind <b> --port <other-host-port> --device-port <device-port>
 adbdock metro repair --device <a> --json
 adbdock status --json
-adbdock watch --background --json
+adbdock watch start --background --json
+adbdock watch status --json
 ```
 
 - Inspect existing mappings first. For a shared Metro use the same host port; for separate projects use different host ports. Different devices may use the same device port; concurrent tasks on one device must not reuse it.

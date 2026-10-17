@@ -68,7 +68,7 @@ test('stopping the watcher terminates an active Bonjour query', { skip: process.
     try { pid = Number((await readFile(`${app.statePath}.bonjour-pids`, 'utf8')).trim()); return Boolean(pid); }
     catch (error) { if (error.code === 'ENOENT') return false; throw error; }
   });
-  assert.equal((await app.run('stop', '--json')).code, 0);
+  assert.equal((await app.run('watch', 'stop', '--json')).code, 0);
   await waitFor(() => {
     try { process.kill(pid, 0); return false; }
     catch (error) { if (error.code === 'ESRCH') return true; throw error; }
@@ -97,7 +97,7 @@ test('a remembered wireless service reconnects using its new endpoint without Me
   await app.run('alias', serial, 'pixel');
   await app.setState({ devices: [], mdns: 'List of discovered mdns services\nadb-phone1-xyz _adb-tls-connect._tcp. 192.168.0.7:45678',
     connectDevices: { '192.168.0.7:45678': { serial, id: 'phone1', guid: 'phone1-xyz' } } });
-  t.after(() => app.run('stop', '--json'));
+  t.after(() => app.run('watch', 'stop', '--json'));
   assert.equal((await app.run('watch', '--background', '--interval', '100', '--json')).code, 0);
   await waitFor(async () => (await app.calls()).some(c => c[0] === 'connect'));
   assert.deepEqual((await app.calls()).find(c => c[0] === 'connect'), ['connect', '192.168.0.7:45678']);
@@ -111,7 +111,7 @@ test('a known GUID can reconnect a device previously registered through USB', as
   await app.run('metro', 'bind', 'pixel', '--port', '8082');
   await app.setState({ devices: [], mdns: 'adb-phone1-xyz _adb-tls-connect._tcp 192.168.0.9:40000',
     connectDevices: { '192.168.0.9:40000': { serial: '192.168.0.9:40000', id: 'phone1', guid: 'phone1-xyz' } } });
-  t.after(() => app.run('stop', '--json'));
+  t.after(() => app.run('watch', 'stop', '--json'));
   assert.equal((await app.run('watch', '--background', '--interval', '100', '--json')).code, 0);
   await waitFor(async () => (await app.state()).devices[0]?.reverse?.['tcp:8081'] === 'tcp:8082');
 });
@@ -133,7 +133,7 @@ test('unknown services and pairing endpoints are never connected', async t => {
   const app = await setup(t, [{ serial: 'usb1', id: 'phone1', guid: 'known' }]);
   await app.run('alias', 'usb1', 'pixel');
   await app.setState({ devices: [], mdns: 'adb-other _adb-tls-connect._tcp 192.168.0.2:12345\nadb-known _adb-tls-pairing._tcp 192.168.0.3:12345' });
-  t.after(() => app.run('stop', '--json'));
+  t.after(() => app.run('watch', 'stop', '--json'));
   await app.run('watch', '--background', '--interval', '100', '--json');
   await waitFor(async () => (await app.calls()).some(c => c[0] === 'mdns'));
   assert.equal((await app.calls()).filter(c => c[0] === 'connect').length, 0);

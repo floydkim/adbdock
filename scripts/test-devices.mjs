@@ -123,7 +123,7 @@ async function main() {
       }
     });
     // Finish the handshake before honoring SIGINT so a detached watcher cannot start after cleanup.
-    await run(['watch', '--background', '--interval', '300', '--json'], true);
+    await run(['watch', 'start', '--background', '--interval', '300', '--json'], true);
     await check('watcher repairs missing tunnel', async () => {
       await deviceCommand(aliases[0], ['reverse', '--remove', `tcp:${devicePort}`]);
       await waitFor(async () => (await reverse(aliases[0])).get(`tcp:${devicePort}`) === `tcp:${servers[0].port}`);
@@ -146,7 +146,7 @@ async function main() {
       await deviceCommand(aliases[0], ['reverse', `tcp:${devicePort}`, externalTarget]);
       await waitFor(async () => (await readFile(path.join(configHome, 'watch.log'), 'utf8')).includes('REVERSE_CONFLICT'));
       assert.equal((await reverse(aliases[0])).get(`tcp:${devicePort}`), externalTarget);
-      await run(['stop', '--json']);
+      await run(['watch', 'stop', '--json']);
       const unbound = await run(['metro', 'unbind', aliases[0], '--device-port', String(devicePort), '--json'], false, true);
       assert(unbound.errors.some(e => e.code === 'REVERSE_CONFLICT'));
       assert.equal((await reverse(aliases[0])).get(`tcp:${devicePort}`), externalTarget);
@@ -158,7 +158,7 @@ async function main() {
     async function cleanup(action) {
       try { await action(); } catch (error) { report.cleanup.errors.push(error.message); }
     }
-    await cleanup(() => run(['stop', '--json'], true));
+    await cleanup(() => run(['watch', 'stop', '--json'], true));
     for (const alias of aliases) {
       if (!devicePort) continue;
       await cleanup(() => run(['metro', 'unbind', alias, '--device-port', String(devicePort), '--json'], true));

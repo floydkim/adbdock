@@ -1,9 +1,12 @@
 # Release guide
 
-The package is configured as `adbdock@0.1.0`, public, under MIT. It is intended
+The first local bootstrap release is `adbdock@0.0.1`; the first planned OIDC
+release is `0.1.0`. The package is public under MIT. It is intended
 for macOS with Node.js 22+ and separately installed Android Platform-Tools.
-There is no automatic publish job. Removing `private` enables a future release;
-it does not publish anything or reserve the package name.
+`.github/workflows/release.yml` publishes stable GitHub Releases through npm
+Trusted Publishing (OIDC). Preparing or pushing the workflow does not publish a
+package. Publication requires both the npm trusted publisher setup below and a
+GitHub Release event.
 
 ## Validate the release candidate
 
@@ -37,7 +40,7 @@ TypeScript on consumer machines. `prepack` builds before packing and
 ```sh
 npm pack --json
 # Inspect the returned file list, size, integrity and executable mode.
-npm publish ./adbdock-0.1.0.tgz --dry-run
+npm publish ./adbdock-0.0.1.tgz --dry-run
 ```
 
 Use the version/file returned by npm if the package version changed. A dry run
@@ -54,39 +57,96 @@ guarantee that publication will succeed. Do not publish over an unexpected
 existing package. If the name is unavailable, choose a different/scoped name
 and repeat packaging checks.
 
-The source repository is https://github.com/floydkim/adbdock. Before npm publication,
-set repository/homepage/bugs metadata to match that source. The package's JavaScript
+The source repository is https://github.com/floydkim/adbdock. The repository,
+homepage and issue URLs are recorded in package.json. The package's JavaScript
 and README are public under MIT once published.
 
-## Publish only when explicitly requested
+## First publication and trusted publisher setup
 
-After the user has approved the reviewed release candidate and publication:
+npm requires the package to exist before configuring its trusted publisher.
+For a simple bootstrap, publish the first reviewed version locally using your
+personal npm account. This is a real public release; execute it only when ready:
 
 ```sh
 npm login
 npm whoami
-npm publish ./adbdock-0.1.0.tgz
+npm publish ./adbdock-0.0.1.tgz --access public
 ```
 
-Use the npm account intended to own the package and complete npm's authentication
-prompts. Do not write credentials into the repository. `publishConfig` selects
-public access and https://registry.npmjs.org/. Publishing a prebuilt tarball uses
-that artifact, so run checks before packing; do not rely on a source checkout's
-publish hook to validate an arbitrary tarball.
+Use the tarball produced by the checks above, substituting its actual version.
+Complete npm's interactive authentication/2FA prompts. Never commit credentials.
+A successful dry-run does not prove package ownership or publishing permission.
+If you prefer not to publish the full initial version yet, npm also supports
+[staged publishing](https://docs.npmjs.com/staged-publishing/), which creates a
+public `0.0.0-stage` placeholder for a new package. It still requires an initial
+authenticated setup; it is not a way to bootstrap entirely through OIDC.
 
-Then verify registry metadata and the documented install/one-off commands:
+Once the package exists, open its npm Settings → Trusted Publisher and register:
+
+| npm field | Value |
+|---|---|
+| Provider | GitHub Actions |
+| Organization or user | `floydkim` |
+| Repository | `adbdock` |
+| Workflow filename | `release.yml` |
+| Environment | Leave blank; the workflow does not use a GitHub environment |
+| Allowed actions | Enable direct publishing with `npm publish` |
+
+Do not enter `.github/workflows/release.yml` as the filename. The workflow must
+already be present in the repository. A new trusted publisher must complete its
+first successful OIDC publish within two days; otherwise delete the expired
+configuration and recreate it when ready. No `NPM_TOKEN` secret is needed.
+
+After confirming OIDC works, npm's "Require two-factor authentication and disallow
+tokens" setting can disable traditional publish tokens without disabling OIDC.
+
+## Publish from GitHub
+
+For the initial rollout, publish `0.0.1` locally, configure the trusted publisher,
+then prepare the first OIDC release:
+
+```sh
+npm version 0.1.0 --no-git-tag-version
+```
+
+Review, commit and push it, then publish GitHub Release `v0.1.0`. Do not reuse
+`v0.0.1` for the first OIDC run; npm cannot publish the same name/version twice.
+
+For later stable CLI releases:
+
+1. Update the CLI version with `npm version patch --no-git-tag-version` (or choose
+   a minor/major version). This updates package.json and package-lock.json, not
+   the independent plugin version.
+2. Run the checks, review and commit the changes, then push to `main`.
+3. Create and publish a GitHub Release targeting that commit, with a tag exactly
+   matching `v<package-version>`, such as `v0.1.0`. A draft or prerelease does not publish.
+
+The release workflow checks out the release commit and uses macOS/Node.js 24 so
+macOS-specific tests run. It disables npm caching, checks the tag/version match,
+runs `npm ci`, all checks and the package installation checks, then packs and
+publishes the tarball. Only the publish job has `id-token: write`; no long-lived
+npm credential is configured. npm generates provenance automatically for this
+public package/repository when publishing with OIDC.
+
+Publishing a GitHub Release is the deployment trigger, not merely pushing `main`
+or a tag. `plugin-v...` releases are ignored. Editing an existing Release does not
+retry the workflow; use Actions → Re-run jobs if the package was not published.
+A published name/version cannot be reused. If npm accepted the package before a
+workflow failure, check the registry before retrying.
+
+Verify the published version:
 
 ```sh
 npm view adbdock version dist.integrity --json
-npm install --global adbdock
-adbdock --help
-npx --yes adbdock@0.1.0 devices
+npx adbdock@latest --help
 ```
 
-These final commands install/run the released package and require that publication
-has occurred. Version 0.1.0 has not been published during preparation. For the
-next release, select a new version; published name/version pairs cannot be reused.
+A dry-run does not validate OIDC authentication. The first real GitHub publication
+is needed to confirm the npm trust configuration. Until then, no OIDC publication
+should be reported as verified.
 
+Official references: [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/),
+[initial package requirement](https://docs.npmjs.com/cli/v11/commands/npm-trust/#prerequisites).
 
 ## Git-based skills plugin
 

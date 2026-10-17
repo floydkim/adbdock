@@ -1,3 +1,6 @@
+import type { Device } from './devices.js';
+import type { SavedDevice } from './store.js';
+
 export class CliError extends Error {
   constructor(public code: string, message: string, public exitCode = 1) {
     super(message);
@@ -23,6 +26,18 @@ export function result(data: unknown, errors: Problem[] = []): Result {
   return { schemaVersion: 1, ok: errors.length === 0, data, errors };
 }
 
+export function formatDeviceTable(entries: (Device | SavedDevice)[], numbered = false): string {
+  const rows = [['ALIAS', 'MODEL', 'CONNECTION', 'STATE', 'DEVICE'], ...entries.map(d => [
+    d.alias ?? '-', 'transports' in d ? d.model : '-', d.kind,
+    'transports' in d ? d.state : 'offline',
+    'transports' in d ? d.serial : d.serials.at(-1) ?? d.id,
+  ])];
+  if (numbered) rows.forEach((row, i) => row.unshift(i === 0 ? '#' : String(i)));
+  const widths = rows[0]!.map((_, i) => Math.max(...rows.map(row => row[i]!.length)));
+  rows.splice(1, 0, widths.map(width => '-'.repeat(width)));
+  return rows.map(row => row.map((cell, i) => cell.padEnd(widths[i]!)).join('  ').trimEnd()).join('\n');
+}
+
 export function print(value: Result, json: boolean): void {
   if (json) {
     console.log(JSON.stringify(value));
@@ -39,9 +54,7 @@ export function print(value: Result, json: boolean): void {
         if (entry.stderr) process.stderr.write(entry.stderr.endsWith('\n') ? entry.stderr : `${entry.stderr}\n`);
       }
     } else if ('transports' in value.data[0]) {
-      const rows = [['ALIAS', 'DEVICE', 'CONNECTION', 'STATE', 'MODEL'], ...value.data.map(d => [d.alias ?? '-', d.serial, d.kind, d.state, d.model])];
-      const widths = rows[0]!.map((_: string, i: number) => Math.max(...rows.map(row => String(row[i]).length)));
-      for (const row of rows) console.log(row.map((cell: string, i: number) => String(cell).padEnd(widths[i]!)).join('  ').trimEnd());
+      console.log(formatDeviceTable(value.data));
     } else console.log(JSON.stringify(value.data, null, 2));
   }
   else if (value.data !== null) console.log(JSON.stringify(value.data, null, 2));

@@ -1,5 +1,5 @@
 import { assignAlias, devices, resolveDevice } from './devices.js';
-import { CliError } from './output.js';
+import { CliError, formatDeviceTable } from './output.js';
 import { readLine } from './prompt.js';
 import { readConfig, saveConfig, withConfig } from './store.js';
 
@@ -14,10 +14,7 @@ export async function configureAlias(target?: string, name?: string) {
     if (!target) {
       const entries = [...live, ...config.devices.filter(saved => !live.some(d => d.id === saved.id))];
       if (!entries.length) throw new CliError('DEVICE_NOT_FOUND', 'No connected or remembered devices.', 3);
-      entries.forEach((d, i) => {
-        const details = 'transports' in d ? `${d.model} | ${d.kind} | ${d.state}` : `${d.kind} | offline`;
-        process.stderr.write(`${i + 1}. ${d.alias ?? '-'} | ${details} | ${d.id}\n`);
-      });
+      process.stderr.write(`${formatDeviceTable(entries, true)}\n`);
       const choice = Number(await readLine('Choose a device number: '));
       if (!Number.isInteger(choice) || choice < 1 || choice > entries.length) throw new CliError('INVALID_ARGUMENT', 'Choose one of the listed device numbers.', 2);
       target = entries[choice - 1]!.id;

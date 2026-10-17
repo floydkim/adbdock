@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -11,7 +11,9 @@ export async function setup(t, devices = [{ serial: 'usb1' }, { serial: 'wifi1',
   const directory = await mkdtemp(path.join(tmpdir(), 'adbdock-'));
   const statePath = path.join(directory, 'adb.json');
   await writeFile(statePath, JSON.stringify({ devices }));
+  await symlink(new URL('./fixtures/fake-dns-sd.mjs', import.meta.url).pathname, path.join(directory, 'dns-sd'));
   const env = { ...process.env, ADBDOCK_HOME: path.join(directory, 'home'),
+    PATH: `${directory}${path.delimiter}${process.env.PATH}`,
     ADBDOCK_ADB: new URL('./fixtures/fake-adb.mjs', import.meta.url).pathname,
     FAKE_ADB_STATE: statePath };
   t.after(async () => {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 import { setup } from './helpers.mjs';
@@ -8,6 +9,87 @@ async function waitFor(fn) {
   while (Date.now() < deadline) { if (await fn()) return; await delay(50); }
   assert.fail('Wireless reconnect did not complete');
 }
+
+test('macOS Bonjour reconnects a remembered service when ADB discovery is empty', { skip: process.platform !== 'darwin' }, async t => {
+  const app = await setup(t, [{ serial: 'usb1', id: 'phone1', guid: 'known' }]);
+  await app.run('alias', 'usb1', 'pixel');
+  await app.run('metro', 'bind', 'pixel', '--port', '8082');
+  await app.setState({ devices: [], bonjourHang: true,
+    bonjour: { 'adb-known': [{ host: 'phone.local.', port: 45678 }] },
+    addresses: { 'phone.local.': ['192.168.0.9'] },
+    connectDevices: { '192.168.0.9:45678': { serial: '192.168.0.9:45678', id: 'phone1' } } });
+  await app.run('watch', '--background', '--interval', '100', '--json');
+  await waitFor(async () => (await app.state()).devices[0]?.reverse?.['tcp:8081'] === 'tcp:8082');
+  assert.deepEqual((await app.calls()).find(c => c[0] === 'connect'), ['connect', '192.168.0.9:45678']);
+  const calls = (await readFile(`${app.statePath}.bonjour`, 'utf8')).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(calls[0], ['-L', 'adb-known', '_adb-tls-connect._tcp', 'local']);
+  assert.deepEqual(calls[1], ['-G', 'v4', 'phone.local.']);
+});
+
+test('Bonjour does not connect missing, unrelated, invalid or ambiguous endpoints', { skip: process.platform !== 'darwin' }, async t => {
+  const scenarios = [
+    { name: 'missing service', records: [], code: 'WIRELESS_NOT_DISCOVERED' },
+    { name: 'unrelated service', records: [{ name: 'adb-other', host: 'phone.local.', port: 40000 }], code: 'WIRELESS_NOT_DISCOVERED' },
+    { name: 'invalid port', records: [{ host: 'phone.local.', port: 0 }], code: 'WIRELESS_NOT_DISCOVERED' },
+    { name: 'ambiguous ports', records: [{ host: 'phone.local.', port: 40000 }, { host: 'phone.local.', port: 40001 }], code: 'WIRELESS_AMBIGUOUS' },
+  ];
+  for (const scenario of scenarios) {
+    await t.test(scenario.name, async t => {
+      const app = await setup(t, [{ serial: 'usb1', id: 'phone1', guid: 'known' }]);
+      await app.run('alias', 'usb1', 'pixel');
+      await app.setState({ devices: [], bonjour: { 'adb-known': scenario.records }, addresses: { 'phone.local.': ['192.168.0.9'] } });
+      await app.run('watch', '--background', '--interval', '100', '--json');
+      await waitFor(async () => {
+        try { return (await readFile(`${app.env.ADBDOCK_HOME}/watch.log`, 'utf8')).includes(scenario.code); }
+        catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+      });
+      assert.equal((await app.calls()).filter(c => c[0] === 'connect').length, 0);
+    });
+  }
+});
+
+test('an ADB-discovered endpoint does not need Bonjour', { skip: process.platform !== 'darwin' }, async t => {
+  const app = await setup(t, [{ serial: 'usb1', id: 'phone1', guid: 'known' }]);
+  await app.run('alias', 'usb1', 'pixel');
+  await app.setState({ devices: [], mdns: 'adb-known _adb-tls-connect._tcp 192.168.0.9:40000',
+    connectDevices: { '192.168.0.9:40000': { serial: '192.168.0.9:40000', id: 'phone1' } } });
+  await app.run('watch', '--background', '--interval', '100', '--json');
+  await waitFor(async () => (await app.calls()).some(c => c[0] === 'connect'));
+  await assert.rejects(readFile(`${app.statePath}.bonjour`), { code: 'ENOENT' });
+});
+
+test('stopping the watcher terminates an active Bonjour query', { skip: process.platform !== 'darwin' }, async t => {
+  const app = await setup(t, [{ serial: 'usb1', id: 'phone1', guid: 'known' }]);
+  await app.run('alias', 'usb1', 'pixel');
+  await app.setState({ devices: [], bonjourHang: true });
+  await app.run('watch', '--background', '--interval', '100', '--json');
+  let pid;
+  await waitFor(async () => {
+    try { pid = Number((await readFile(`${app.statePath}.bonjour-pids`, 'utf8')).trim()); return Boolean(pid); }
+    catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+  });
+  assert.equal((await app.run('stop', '--json')).code, 0);
+  await waitFor(() => {
+    try { process.kill(pid, 0); return false; }
+    catch (error) { if (error.code === 'ESRCH') return true; throw error; }
+  });
+  assert.equal((await app.calls()).filter(c => c[0] === 'connect').length, 0);
+});
+
+test('a Bonjour endpoint with a different hardware identity receives no saved mapping', { skip: process.platform !== 'darwin' }, async t => {
+  const app = await setup(t, [{ serial: 'usb1', id: 'phone1', guid: 'known' }]);
+  await app.run('alias', 'usb1', 'pixel');
+  await app.run('metro', 'bind', 'pixel', '--port', '8082');
+  await app.setState({ devices: [], bonjour: { 'adb-known': [{ host: 'phone.local.', port: 40000 }] },
+    addresses: { 'phone.local.': ['192.168.0.9'] },
+    connectDevices: { '192.168.0.9:40000': { serial: '192.168.0.9:40000', id: 'another-phone' } } });
+  await app.run('watch', '--background', '--interval', '100', '--json');
+  await waitFor(async () => {
+    try { return (await readFile(`${app.env.ADBDOCK_HOME}/watch.log`, 'utf8')).includes('DEVICE_UNAVAILABLE'); }
+    catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+  });
+  assert.equal((await app.state()).devices[0].reverse, undefined);
+});
 
 test('a remembered wireless service reconnects using its new endpoint without Metro', async t => {
   const serial = 'adb-phone1-xyz._adb-tls-connect._tcp';

@@ -104,6 +104,12 @@ device can reconnect to the matching `_adb-tls-connect._tcp` service's current I
 and port. This also works without a Metro mapping. Devices are identified again
 after connecting before a saved mapping is applied.
 
+On macOS, if ADB discovery has no match for a remembered device, the watcher also
+queries that saved service name through the built-in Bonjour `dns-sd` tool and
+resolves its current IPv4 address. Each query is limited to 1.5 seconds and is
+cancelled when the watcher stops. A normal service and address lookup takes up
+to three seconds, in addition to the polling interval and ADB commands.
+
 Unknown services and pairing endpoints are ignored. Multiple matching endpoints,
 unavailable mDNS, missing identity information, or disabled wireless debugging
 require manual intervention. Legacy `adb tcpip` devices can be used while

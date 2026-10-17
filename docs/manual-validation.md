@@ -196,3 +196,47 @@ availability passed; automatic HMR recovery across the transition did not.
 These USB tests changed only scratch app revisions and validation documentation;
 production code was unchanged. Reliable low-latency wireless discovery, a real
 IP-address change, actual Mac sleep/wake and long-running stability remain open.
+
+
+## Follow-up: macOS Bonjour fallback
+
+Added a bounded native Bonjour lookup when ADB discovery has no matching saved
+service for a disconnected device. Only remembered TLS connection service names
+are queried; service lookup and IPv4 address lookup each run for at most 1.5
+seconds. Multiple endpoints still produce WIRELESS_AMBIGUOUS. The existing live
+hardware-ID verification remains the condition for applying a saved mapping.
+
+The new CLI boundary test first failed without the fallback, then passed. All 47
+tests and typecheck passed. Added coverage for missing/unrelated services, invalid
+ports, ambiguous endpoints, bypassing Bonjour when ADB already has a match,
+terminating an active query on watcher stop, and refusing a saved mapping when the
+connected hardware ID differs. Bonjour-specific cases run only on macOS; other
+platforms retain the existing ADB discovery path. Test fixtures isolate native
+Bonjour calls as well as ADB, so unit tests do not query the real network.
+
+A separate test used the real Galaxy and macOS dns-sd, with a wrapper returning
+an empty ADB mDNS list and hiding USB from adbdock's device list. The watcher
+queried Bonjour, issued adb connect to the currently advertised port 43091,
+verified the Galaxy identity, and reported ready after about 4.5 seconds including
+watcher startup and polling. This was an injected transport-list test, not a
+physical USB detach, and does not establish physical handoff latency. No new
+runtime dependency or production test export was added.
+
+Physical USB detach under an injected empty ADB discovery list subsequently
+passed. The native Bonjour path and actual transport list were unmodified by the
+wrapper. Last USB-present poll began at 04:18:47.567 UTC; first USB-absent poll at
+04:18:49.822. The watcher issued connect to 192.168.219.106:43091 at 04:18:52.922,
+created the missing 8081 → 8082 reverse at 04:18:53.382, and began reverse
+verification at 04:18:53.424. This is approximately 3.6 seconds from first observed
+absence to reverse verification, not from the exact physical detach time. These
+are command-start timestamps from one trial; the following emulator reverse
+command started 42 ms after phone verification began.
+
+Alias, verified hardware identity and Metro mapping were preserved. Emulator
+Fast Refresh A10 → A11 preserved counter 1. Galaxy stayed B13 after a B14 edit;
+explicit Reload loaded B14 with counter 0, then B15 Fast Refresh preserved counter
+1. Restored the normal watcher with no ADB wrapper after testing. Both Metros and
+existing desired mappings remain active. This establishes one successful physical
+handoff using native Bonjour under a deliberately empty ADB discovery result;
+it does not establish behavior on every network, actual IP-address changes,
+Mac sleep/wake or long-running reliability. No commit has been made yet.

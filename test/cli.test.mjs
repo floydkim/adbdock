@@ -19,3 +19,43 @@ test('unknown commands return a JSON argument error', () => {
   assert.equal(output.ok, false);
   assert.equal(output.errors[0].code, 'INVALID_ARGUMENT');
 });
+
+test('command help explains options and notation without accessing devices or config', () => {
+  const commands = ['devices', 'alias', 'pair', 'adb', 'metro', 'metro bind', 'metro unbind', 'metro repair', 'status', 'watch', 'stop'];
+  for (const command of commands) {
+    const output = spawnSync(process.execPath, [cli.pathname, ...command.split(' '), '--help', '--json'], {
+      encoding: 'utf8', env: { ...process.env, ADBDOCK_ADB: '/missing/adbdock-help-adb', ADBDOCK_HOME: '/missing/adbdock-help-config' },
+    });
+    assert.equal(output.status, 0, `${command}: ${output.stdout}`);
+    const help = JSON.parse(output.stdout);
+    assert.equal(help.ok, true);
+    assert.match(help.data, new RegExp(`adbdock ${command}`));
+    assert.match(help.data, /Examples:/);
+    assert.match(help.data, /<value>.*required/);
+    assert.match(help.data, /\[part\].*optional/);
+  }
+});
+
+test('short help and the Metro overview work without arguments', () => {
+  const short = spawnSync(process.execPath, [cli.pathname, 'pair', '-h'], { encoding: 'utf8' });
+  assert.equal(short.status, 0);
+  assert.match(short.stdout, /--qr/);
+  const metro = spawnSync(process.execPath, [cli.pathname, 'metro'], { encoding: 'utf8' });
+  assert.equal(metro.status, 0);
+  assert.match(metro.stdout, /bind/);
+  assert.match(metro.stdout, /repair/);
+});
+
+test('help for an unknown command fails rather than showing unrelated instructions', () => {
+  const output = spawnSync(process.execPath, [cli.pathname, 'metro', 'missing', '--help', '--json'], { encoding: 'utf8' });
+  assert.equal(output.status, 2);
+  assert.equal(JSON.parse(output.stdout).errors[0].code, 'INVALID_ARGUMENT');
+});
+
+test('help after the ADB separator is forwarded to the selected device', async t => {
+  const { setup } = await import('./helpers.mjs');
+  const app = await setup(t);
+  const output = await app.run('adb', '--device', 'usb1', '--json', '--', 'shell', 'example', '--help');
+  assert.equal(output.code, 0, output.stdout);
+  assert.equal((await app.calls()).some(args => args.join(' ') === '-s usb1 shell example --help'), true);
+});

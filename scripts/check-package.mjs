@@ -27,7 +27,7 @@ try {
   const packed = JSON.parse((await exec('npm', ['pack', '--json', '--pack-destination', directory], { cwd: root, timeout: 60000 })).stdout)[0];
   controller.signal.throwIfAborted();
   const names = packed.files.map(file => file.path);
-  for (const name of ['package.json', 'README.md', 'LICENSE', 'dist/cli.js', 'dist/pair.js', 'dist/qr.js', 'dist/prompt.js', 'dist/alias.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
+  for (const name of ['package.json', 'README.md', 'LICENSE', 'dist/cli.js', 'dist/help.js', 'dist/pair.js', 'dist/qr.js', 'dist/prompt.js', 'dist/alias.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
   assert(names.every(name => ['package.json', 'README.md', 'LICENSE'].includes(name) || /^dist\/[^/]+\.js$/.test(name)), 'Unexpected package files');
   assert(packed.files.find(file => file.path === 'dist/cli.js').mode & 0o111, 'CLI is not executable');
   const tarball = path.join(directory, packed.filename);
@@ -42,6 +42,7 @@ try {
   await writeFile(env.FAKE_ADB_STATE, '{"devices":[]}');
   const help = JSON.parse((await exec(executable, ['--help', '--json'], { env, timeout: 20000 })).stdout);
   assert(help.ok && help.data.includes('adbdock pair'));
+  assert((await cli('metro', 'bind', '--help')).data.includes('--device-port'));
   assert.deepEqual((await cli('devices')).data, []);
   assert.deepEqual((await cli('pair', '--list')).data, []);
   const qrScan = await exec(executable, ['pair', '--qr', '--timeout', '1', '--json'], { env, timeout: 20000 }).catch(error => error);

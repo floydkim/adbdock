@@ -5,29 +5,11 @@ import { devices, remember, resolveDevice, selectDevices } from './devices.js';
 import { isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
 import { applyBinding, problem, removeBinding, repairBindings } from './link.js';
+import { helpFor } from './help.js';
 import { configureAlias } from './alias.js';
 import { pairDevice, pairingServices } from './pair.js';
 import { status } from './status.js';
 import { runWatcher, startBackground, stopWatcher, watcherInfo } from './daemon.js';
-
-const help = `adbdock — multi-device ADB, optional Metro recovery
-
-Usage:
-  adbdock devices [--json]
-  adbdock alias [device] [name]
-  adbdock pair [ip:pairing-port] [--alias <name>] [--connect <ip:connection-port>]
-  adbdock pair <ip:pairing-port> --code-stdin [--json]
-  adbdock pair --list [--json]
-  adbdock pair --qr [--alias <name>] [--timeout <milliseconds>]
-  adbdock adb --device <device> [--device <device> ...] -- <adb command>
-  adbdock adb --all [--json] -- <adb command>
-  adbdock metro bind <device> --port <port> [--device-port <port>]
-  adbdock metro unbind <device> [--device-port <port>]
-  adbdock metro repair (--device <device> | --all)
-  adbdock status [--json]
-  adbdock watch [--background] [--interval <milliseconds>]
-  adbdock stop
-`;
 
 const args = process.argv.slice(2);
 const separator = args.indexOf('--');
@@ -51,7 +33,8 @@ function emit(output: ReturnType<typeof result>) {
 }
 
 async function main() {
-  if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+  const help = helpFor(separator < 0 ? args : args.slice(0, separator));
+  if (help !== undefined) {
     print(result(help), json);
     return;
   }

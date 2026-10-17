@@ -17,6 +17,16 @@ npm run check
 전용 테스트는 다른 OS에서 skip되므로, skip을 통과로 보고하지 않는다.
 이 단계만으로 실제 Android 연결이나 RN Fast Refresh를 검증했다고 말하지 않는다.
 
+### GitHub Actions CI
+
+`main` push와 PR, Actions 화면의 수동 실행으로 검사한다.
+macOS runner에서 Node.js 22·24 각각 `npm ci`, `npm run check`,
+`npm run check:package`를 실행한다. 패키지 검사는 임시 설치와 publish dry-run만
+수행하며 실제 npm 배포는 하지 않는다.
+
+실기기·Android SDK·Metro 없이 fixture 기반으로 실행한다. 실제 기기 연결,
+잠자기·복귀, RN 화면과 Fast Refresh는 아래의 별도 절차로 확인한다.
+
 ### 명령 조합과 실패 조건
 
 `npm run check`가 아래 시나리오도 함께 실행하므로, 조합마다 수동으로 기기를 조작할 필요는 없다.

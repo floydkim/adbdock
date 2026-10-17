@@ -27,8 +27,8 @@ try {
   const packed = JSON.parse((await exec('npm', ['pack', '--json', '--pack-destination', directory], { cwd: root, timeout: 60000 })).stdout)[0];
   controller.signal.throwIfAborted();
   const names = packed.files.map(file => file.path);
-  for (const name of ['package.json', 'README.md', 'LICENSE', 'dist/cli.js', 'dist/help.js', 'dist/pair.js', 'dist/qr.js', 'dist/prompt.js', 'dist/alias.js', 'dist/command-aliases.js', 'dist/alias-runner.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
-  assert(names.every(name => ['package.json', 'README.md', 'LICENSE'].includes(name) || /^dist\/[^/]+\.js$/.test(name)), 'Unexpected package files');
+  for (const name of ['package.json', 'README.md', 'README.ko.md', 'LICENSE', 'dist/cli.js', 'dist/help.js', 'dist/pair.js', 'dist/qr.js', 'dist/prompt.js', 'dist/alias.js', 'dist/command-aliases.js', 'dist/alias-runner.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
+  assert(names.every(name => ['package.json', 'README.md', 'README.ko.md', 'LICENSE'].includes(name) || /^dist\/[^/]+\.js$/.test(name)), 'Unexpected package files');
   assert(packed.files.find(file => file.path === 'dist/cli.js').mode & 0o111, 'CLI is not executable');
   const tarball = path.join(directory, packed.filename);
   await exec('npm', ['install', '--global', '--prefix', prefix, '--omit=dev', '--no-audit', '--no-fund', tarball], { timeout: 120000 });

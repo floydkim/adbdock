@@ -9,6 +9,7 @@
   "files": [
     "dist/*.js",
     "README.md",
+    "README.ko.md",
     "LICENSE"
   ],
   "engines": {

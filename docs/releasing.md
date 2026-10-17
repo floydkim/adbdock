@@ -25,7 +25,7 @@ It also verifies `npm exec --package <tarball>` and `npm publish <tarball>
 Only temporary installation/config resources are removed; normal npm caches
 may be updated. It does not globally install into the user's normal prefix.
 
-The tarball contains `dist/*.js`, README, LICENSE and npm's required package.json.
+The tarball contains `dist/*.js`, README.md, README.ko.md, LICENSE and npm's required package.json.
 It excludes source, tests, TypeScript declarations/maps, local configuration,
 device logs and development docs. Internal relative JS modules, including the
 background watcher entry, stay together. No install/prepare build hook requires

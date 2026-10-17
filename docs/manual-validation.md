@@ -49,7 +49,7 @@ The following remain to be checked with hardware and running RN projects:
 - [ ] Wireless reconnect after IP/port change and after wireless debugging toggle
 - [ ] Mac sleep/wake with automatic recovery
 - [x] Metro stop/restart, preserving the reverse rules (explicit RN Reload required)
-- [ ] USB/Wi-Fi dual transport on the same real phone
+- [x] USB/Wi-Fi dual transport on the same real phone
 - [x] Correct project visible and actual Fast Refresh on every tested device
 
 ## Packaging
@@ -141,3 +141,58 @@ reconnect test. No implementation changes were made for these scenarios.
 Still requires human/device preparation: physical USB connection and unplug/replug,
 USB/Wi-Fi dual transport, wireless debugging toggle with a recovery path, actual
 wireless IP/port change, Mac sleep/wake and long-running stability assessment.
+
+
+## Follow-up: USB / wireless dual transport and physical unplug
+
+Connected the same Galaxy over USB and TLS Wi-Fi. adbdock grouped both
+transports into one `flip4` device, preferred USB for alias commands, and returned
+one phone result with `adb --all` (plus one emulator result).
+
+Disconnected the Wi-Fi transport while leaving USB attached. Fast Refresh B7 → B8
+preserved counter 1, establishing that this path actually used USB. With USB as a
+recovery path, toggled `adb_wifi_enabled` off/on; the advertised TLS port changed
+39899 → 40635. Wireless debugging was left enabled. USB Fast Refresh B8 → B9
+also preserved counter 1. The watcher did not connect Wi-Fi while USB was online.
+
+After the human physically unplugged USB, immediate failover failed: ADB's mDNS
+list was empty and the watcher reported WIRELESS_NOT_DISCOVERED. A TCP probe found
+the new port reachable and macOS `dns-sd -L` resolved the exact remembered service
+to port 40635 even while ADB discovery was empty. Later ADB discovery recovered;
+the recording wrapper captured watcher `adb connect 192.168.219.106:40635` at
+03:56:31.987 UTC and reverse creation at 03:56:32.516 UTC. Ready was logged at
+03:56:32.655 UTC, about 121 seconds after the first recorded discovery failure.
+The exact physical-detach timestamp was not captured, so this is not a measured
+unplug-to-recovery duration. No manual adb connect or production changes were
+made during this recovery; native Bonjour diagnostics may have affected discovery,
+and the cause of ADB's eventual recovery was not established.
+
+The alias and device 8081 → host 8082 mapping survived. Emulator Fast Refresh
+A8 → A9 preserved counter 1. Galaxy stayed B9 after a B10 edit; explicit Reload
+loaded B10 with counter 0, then B11 Fast Refresh preserved counter 1. This confirms
+tunnel recovery separately from the RN HMR reconnection limitation.
+
+Outcome: delayed automatic recovery observed; prompt, reliable USB-to-Wi-Fi
+failover is not established. A macOS Bonjour fallback for remembered service names
+is a candidate improvement, not implemented or validated. Restored the normal
+watcher after recording. At that phase, physical USB replug, IP changes, actual Mac sleep/wake
+(deferred by user), and long-running stability remain unverified.
+
+
+## Follow-up: physical USB replug
+
+After the human reconnected the cable, the phone appeared as USB R3CW107212P;
+the previous wireless endpoint was offline and discovery advertised port 43091.
+`status` selected USB with the same flip4 alias and ready 8081 → 8082 mapping.
+The alias command used the USB transport and `adb --all` returned exactly two
+results: one phone and one emulator. The existing watcher remained active.
+
+The emulator refreshed A9 → A10 with counter 1. Galaxy stayed B11 throughout 12
+snapshot checks after editing B12. Explicit Reload over USB loaded B12 with
+counter 0; pressing the counter and editing B13 then preserved counter 1 through
+Fast Refresh. Captured updated screenshots. USB replug/selection and tunnel
+availability passed; automatic HMR recovery across the transition did not.
+
+These USB tests changed only scratch app revisions and validation documentation;
+production code was unchanged. Reliable low-latency wireless discovery, a real
+IP-address change, actual Mac sleep/wake and long-running stability remain open.

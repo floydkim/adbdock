@@ -25,6 +25,7 @@ if (args[0] === 'devices') {
   writeFileSync(statePath, JSON.stringify(state));
   console.log(`Successfully paired to ${args[1]} [guid=${state.pairGuid ?? 'adb-phone1-xyz'}]`);
 } else if (args[0] === 'connect') {
+  if (state.connectFail) { console.error('connection refused'); process.exit(1); }
   if (state.connectDelay) await new Promise(resolve => setTimeout(resolve, state.connectDelay));
   const added = state.connectDevices?.[args[1]];
   if (added) {
@@ -37,6 +38,9 @@ if (args[0] === 'devices') {
   const device = state.devices.find(d => d.serial === args[1]);
   if (!device || device.state === 'offline') { console.error('device offline'); process.exit(1); }
   const command = args.slice(2);
+  if (device.commandFailures?.some(prefix => command.join(' ') === prefix || command.join(' ').startsWith(`${prefix} `))) {
+    console.error('simulated command failure'); process.exit(1);
+  }
   if (command.join(' ') === 'shell getprop ro.serialno') {
     if (device.identityFail) { console.error('identity unavailable'); process.exit(1); }
     console.log(device.id ?? device.serial);
@@ -57,6 +61,14 @@ if (args[0] === 'devices') {
       delete device.reverse[command[2]];
     } else {
       const ports = command.filter(arg => arg.startsWith('tcp:'));
+      if (device.reverseBeforeCreate) {
+        Object.assign(device.reverse, device.reverseBeforeCreate);
+        delete device.reverseBeforeCreate;
+        writeFileSync(statePath, JSON.stringify(state));
+      }
+      if (command.includes('--no-rebind') && Object.hasOwn(device.reverse, ports[0])) {
+        console.error('cannot rebind existing socket'); process.exit(1);
+      }
       device.reverse[ports[0]] = ports[1];
     }
     if (command[1] !== '--list' && !state.recordOnlyReverse) writeFileSync(statePath, JSON.stringify(state));

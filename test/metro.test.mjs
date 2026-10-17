@@ -96,3 +96,36 @@ test('invalid ports fail before any reverse command', async t => {
   }
   assert.equal((await app.calls()).filter(c => c.includes('reverse')).length, 0);
 });
+
+test('a reverse rule created between inspection and binding is preserved', async t => {
+  const app = await setup(t, [{ serial: 'usb1', reverseBeforeCreate: { 'tcp:8081': 'tcp:9999' } }]);
+  const output = await app.run('metro', 'bind', 'usb1', '--port', '8082', '--json');
+  assert.equal(output.code, 1, output.stdout);
+  assert.equal((await app.state()).devices[0].reverse['tcp:8081'], 'tcp:9999');
+  const { readFile } = await import('node:fs/promises');
+  const config = JSON.parse(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'));
+  assert.equal(config.bindings[0].metroPort, 8082);
+  assert.equal(config.bindings[0].managedPort, undefined);
+  assert((await app.calls()).some(c => c.includes('--no-rebind')));
+});
+
+test('an already matching external reverse rule is not claimed or removed on unbind', async t => {
+  const app = await setup(t, [{ serial: 'usb1', reverse: { 'tcp:8081': 'tcp:8082' } }]);
+  assert.equal((await app.run('metro', 'bind', 'usb1', '--port', '8082', '--json')).code, 0);
+  assert.equal((await app.run('metro', 'unbind', 'usb1', '--json')).code, 0);
+  assert.equal((await app.state()).devices[0].reverse['tcp:8081'], 'tcp:8082');
+  assert.equal((await app.calls()).filter(c => c[2] === 'reverse' && c[3] !== '--list').length, 0);
+});
+
+test('repair continues to other devices when one reverse query fails', async t => {
+  const app = await setup(t, [{ serial: 'usb1' }, { serial: 'usb2' }]);
+  assert.equal((await app.run('metro', 'bind', 'usb1', '--port', '8082', '--json')).code, 0);
+  assert.equal((await app.run('metro', 'bind', 'usb2', '--port', '8083', '--json')).code, 0);
+  await app.setState({ devices: [{ serial: 'usb1', commandFailures: ['reverse --list'] }, { serial: 'usb2' }] });
+  const output = await app.run('metro', 'repair', '--all', '--json');
+  assert.equal(output.code, 1, output.stdout);
+  const result = JSON.parse(output.stdout);
+  assert.deepEqual(result.data.map(binding => binding.state), ['ADB_ERROR', 'ready']);
+  assert.equal(result.errors[0].deviceId, 'android:usb1');
+  assert.equal((await app.state()).devices[1].reverse['tcp:8081'], 'tcp:8083');
+});

@@ -131,3 +131,20 @@ test('watch control rejects start options and unknown subcommands', async t => {
   }
   assert.deepEqual(await app.calls(), []);
 });
+
+test('watch repairs another device after a failure and does not recreate an unbound mapping', async t => {
+  const app = await setup(t, [{ serial: 'usb1' }, { serial: 'usb2' }]);
+  assert.equal((await app.run('metro', 'bind', 'usb1', '--port', '8082', '--json')).code, 0);
+  assert.equal((await app.run('metro', 'bind', 'usb2', '--port', '8083', '--json')).code, 0);
+  await app.setState({ devices: [{ serial: 'usb1', commandFailures: ['reverse --list'] }, { serial: 'usb2' }] });
+  const offset = (await app.calls()).length;
+  const start = await app.run('watch', 'start', '--background', '--interval', '100', '--json');
+  assert.equal(start.code, 0, start.stdout);
+  await waitFor(async () => (await app.state()).devices[1].reverse?.['tcp:8081'] === 'tcp:8083');
+  assert((await app.calls()).slice(offset).some(c => c.join(' ') === '-s usb1 reverse --list'));
+  const unbind = await app.run('metro', 'unbind', 'usb2', '--json');
+  assert.equal(unbind.code, 0, unbind.stdout);
+  const inspections = (await app.calls()).filter(c => c[0] === 'devices').length;
+  await waitFor(async () => (await app.calls()).filter(c => c[0] === 'devices').length >= inspections + 3);
+  assert.equal((await app.state()).devices[1].reverse?.['tcp:8081'], undefined);
+});

@@ -491,3 +491,34 @@ for this test. Single-device success was validated with fake ADB, not a physical
 single-device setup in this run. No UI command was sent to real devices.
 Evidence: auto-target-checks.log and auto-target-package-checks.log in scratch
 rn084-validation. No package was published.
+
+## Expanded regression boundaries — 2026-10-17
+
+Reviewed CLI target/argument routing, command registry/execution, Metro ownership,
+watcher recovery and pairing partial success against their automated tests.
+Added named ADB/alias selection scenarios, literal option/empty argument forwarding,
+timeout policy, deleted/unknown alias handling, concurrent config writes and
+interactive delete races. Capture failure and display-ID fallback now run through
+the actual default script, alongside reverse early failure and the 4 MiB output
+limit. Ctrl+C covers four active jobs plus two queued targets and checks child PIDs.
+
+The fake ADB now supports command-specific failures, connection refusal, and real
+--no-rebind rejection when another rule appears before creation. Those failure/race
+scenarios were first observed failing with the old fixture, then passed after the
+fixture gained the missing behavior. No production behavior was changed.
+Metro tests cover external rule ownership, create-time races and partial repair;
+watch tests verify healthy-device repair during another failure and no recreation
+for three observed discovery cycles after unbind. Pair tests reject GUID-only
+registration when hardware identity is unverified and preserve pairing-success
+state after connection refusal.
+
+Typecheck and all 148 tests passed without skips, including subprocess and PTY
+flows. Production-only package install, npm exec and publish dry-run passed;
+nothing was published. Independent review led to tightening the watcher failure
+assertion to inspect calls only after watcher startup; that scenario was rerun
+successfully. The testing guide now maps behaviors to files and explains focused
+execution. No physical devices, real pairing, sleep or RN UI/HMR checks were run
+for this test-only expansion. Existing real-device/watcher configurations stayed
+outside the test fixtures. Evidence: expanded-regression-checks.log,
+expanded-regression-package-checks.log, regression-boundaries-checks.log and
+regression-recovery-checks.log in scratch rn084-validation.

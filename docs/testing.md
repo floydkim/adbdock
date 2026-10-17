@@ -17,6 +17,30 @@ npm run check
 전용 테스트는 다른 OS에서 skip되므로, skip을 통과로 보고하지 않는다.
 이 단계만으로 실제 Android 연결이나 RN Fast Refresh를 검증했다고 말하지 않는다.
 
+### 명령 조합과 실패 조건
+
+`npm run check`가 아래 시나리오도 함께 실행하므로, 조합마다 수동으로 기기를 조작할 필요는 없다.
+
+| 범위 | 자동 확인 내용 | 테스트 파일 |
+|---|---|---|
+| CLI 조합 | ADB/저장 명령에 같은 대상 규칙 적용, 잘못 지정한 대상의 자동 대체 금지, 중복 지정, USB/Wi-Fi 경로 선택, `--all`, 같은 AVD 여러 대 | `test/cli-scenarios.test.mjs` |
+| 인자 전달 | `--` 뒤의 `--help`·`--json`·`-d`·빈 문자열·공백·셸 문자 보존, 제한 시간 정책 | `test/cli-scenarios.test.mjs` |
+| 저장 명령 | 동시 등록·편집/삭제 충돌, 삭제한 기본값 재실행 금지, 캡처 실패·디스플레이 미검색, PNG 파일 분리, reverse 실패 중단, 출력 상한, 실행 중/대기 중 취소 | `test/command-alias.test.mjs` |
+| Metro/watch | 조회 후 생긴 외부 규칙 보존, 일치하는 외부 규칙 소유권 보존, 일부 기기 실패 중 다른 기기 복구, unbind 후 재생성 금지 | `test/metro.test.mjs`, `test/watch.test.mjs` |
+| 페어링 | GUID가 같아도 하드웨어 미확인 시 등록 금지, 페어링 성공 후 연결 거부의 부분 성공 처리 | `test/pair.test.mjs` |
+
+명령 조합만 빠르게 확인하려면 다음을 실행한다. 전체 검증은 계속 `npm run check`를 사용한다.
+
+```sh
+npm run build
+node --test test/cli-scenarios.test.mjs test/command-alias.test.mjs
+```
+
+실패한 하위 테스트 이름에 ADB/저장 명령 구분과 시나리오가 표시된다. 테스트의 JSON 결과,
+대상 serial 목록, fixture ADB 호출 비교를 보고 어떤 조건이 어긋났는지 확인한다.
+fixture는 명령별 실패, 연결 거부, reverse `--no-rebind` 충돌을 주입한다.
+이는 실제 USB 탈착·잠자기·RN 화면/HMR 검증을 대체하지 않는다.
+
 ## 2. 실제 기기 자동 회귀
 
 필요한 것: PATH의 adb(또는 ADBDOCK_ADB), 연결·인증된 Android 기기/에뮬레이터,

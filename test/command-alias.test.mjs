@@ -155,25 +155,30 @@ test('an exited shell with a surviving child is still reported as timed out', as
 });
 
 
-test('Ctrl+C cancels all owned command groups and leaves no child jobs', async t => {
-  const app = await setup(t, [{ serial:'usb1' }, { serial:'usb2' }]);
+test('Ctrl+C cancels active and queued targets without starting more jobs', async t => {
+  const app = await setup(t, Array.from({ length: 6 }, (_, i) => ({ serial: `usb${i + 1}` })));
   const script = `sleep 60 & child=$!; printf '%s' "$child" > "${app.directory}/$ADBDOCK_DEVICE.pid"; wait`;
   await app.run('adb-alias', 'add', 'waiting', script, '--json');
   const child = spawn(process.execPath, [cliPath, '@waiting', '--all', '--json'], { env:app.env, stdio:['ignore','pipe','pipe'] });
   let stdout = '';
   child.stdout.on('data', data => stdout += data);
   const exited = new Promise(resolve => child.once('exit', resolve));
-  t.after(() => child.kill('SIGKILL'));
+  t.after(async () => { child.kill('SIGTERM'); await exited; });
   let files = [];
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 400; i++) {
     files = (await readdir(app.directory)).filter(f => f.endsWith('.pid'));
-    if (files.length === 2) break;
+    if (files.length === 4) {
+      const pids = await Promise.all(files.map(file => readFile(`${app.directory}/${file}`, 'utf8')));
+      if (pids.every(pid => /^[1-9][0-9]*$/.test(pid))) break;
+    }
     await new Promise(resolve => setTimeout(resolve, 20));
   }
-  assert.equal(files.length,2);
+  assert.equal(files.length,4);
   child.kill('SIGINT');
   assert.equal(await exited, 130);
+  assert.equal(JSON.parse(stdout).data.length, 6);
   assert(JSON.parse(stdout).data.every(d => d.cancelled));
+  assert.equal((await readdir(app.directory)).filter(file => file.endsWith('.pid')).length, 4);
   for (const file of files) {
     const pid = Number(await readFile(`${app.directory}/${file}`,'utf8'));
     let alive=true;
@@ -254,4 +259,98 @@ test('interactive alias selection shows the full multiline command before choosi
   assert(preview.trimEnd().split('\n').every(line => line.length <= 80), preview);
   assert(detail.includes(command), detail);
   assert.equal(JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data[2].command, command);
+});
+
+test('deleted or unknown command aliases fail before querying ADB', async t => {
+  const app = await setup(t);
+  assert.equal((await app.run('adb-alias', 'remove', 'menu', '--json')).code, 0);
+  for (const name of ['menu', 'unknown']) {
+    const output = await app.run(`@${name}`, '--all', '--json');
+    assert.equal(output.code, 3, output.stdout);
+    assert.equal(JSON.parse(output.stdout).errors[0].code, 'ALIAS_NOT_FOUND');
+  }
+  assert.deepEqual(await app.calls(), []);
+});
+
+test('concurrent command registrations preserve each other and device aliases', async t => {
+  const app = await setup(t, [{ serial: 'usb1' }]);
+  const outputs = await Promise.all([
+    app.run('adb-alias', 'add', 'first', 'echo first', '--json'),
+    app.run('adb-alias', 'add', 'second', 'echo second', '--json'),
+    app.run('alias', 'usb1', 'phone', '--json'),
+  ]);
+  assert(outputs.every(output => output.code === 0), JSON.stringify(outputs));
+  const config = JSON.parse(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'));
+  assert.equal(config.devices[0].alias, 'phone');
+  assert.deepEqual(Object.keys(config.commandAliases).sort(), ['first', 'menu', 'reverse', 'screenshot', 'second']);
+});
+
+test('interactive deletion cannot remove a command changed after selection', tty, async t => {
+  const app = await setup(t, []);
+  const output = await terminal(app, ['adb-alias'], [['Choose an alias number:', '1\n'], ['[e]dit', async () => {
+    assert.equal((await app.run('adb-alias', 'add', 'menu', 'echo updated', '--force', '--json')).code, 0);
+    return 'd\n';
+  }]]);
+  assert.match(output.stdout, /ALIAS_CHANGED/);
+  const entries = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
+  assert.equal(entries.find(entry => entry.name === 'menu').command, 'echo updated');
+});
+
+test('a failed screenshot reports failure without printing a success path or retrying', async t => {
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const app = await setup(t, [{ serial: 'usb1', commandFailures: ['exec-out screencap'] }]);
+  const output = await promisify(execFile)(process.execPath, [cliPath, '@screenshot', '--json'], {
+    env: app.env, cwd: app.directory, timeout: 15000,
+  }).catch(error => error);
+  assert.equal(output.code, 1);
+  const result = JSON.parse(output.stdout);
+  assert.equal(result.errors[0].code, 'COMMAND_FAILED');
+  assert.equal(result.data[0].stdout, '');
+  assert.equal(result.errors[0].retryable, false);
+  assert.equal((await app.calls()).filter(c => c.includes('screencap')).length, 1);
+});
+
+test('default screenshots without display IDs create separate binary files for all targets', async t => {
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const app = await setup(t, [{ serial: 'usb1', model: 'Same' }, { serial: 'usb2', model: 'Same' }]);
+  const output = await promisify(execFile)(process.execPath, [cliPath, '@screenshot', '--all', '--json'], {
+    env: app.env, cwd: app.directory, timeout: 15000,
+  });
+  assert.equal(JSON.parse(output.stdout).data.length, 2);
+  const files = (await readdir(app.directory)).filter(name => name.endsWith('.png'));
+  assert.equal(files.length, 2);
+  for (const file of files) assert.deepEqual(await readFile(`${app.directory}/${file}`), Buffer.from([137,80,78,71,13,10,26,10,0,255,128]));
+  for (const call of (await app.calls()).filter(c => c.includes('screencap'))) assert.deepEqual(call.slice(2), ['exec-out', 'screencap', '-p']);
+});
+
+test('reverse stops after a failed mapping and preserves the saved configuration', async t => {
+  const app = await setup(t, [{ serial: 'usb1' }]);
+  assert.equal((await app.run('metro', 'bind', 'usb1', '--port', '8082', '--json')).code, 0);
+  assert.equal((await app.run('metro', 'bind', 'usb1', '--port', '8083', '--device-port', '18081', '--json')).code, 0);
+  await app.setState({ devices: [{ serial: 'usb1', commandFailures: ['reverse tcp:8081 tcp:8082'] }] });
+  const configPath = `${app.env.ADBDOCK_HOME}/config.json`;
+  const before = await readFile(configPath, 'utf8');
+  const offset = (await app.calls()).length;
+  const output = await app.run('@reverse', '--json');
+  assert.equal(output.code, 1, output.stdout);
+  assert.equal(JSON.parse(output.stdout).errors[0].code, 'COMMAND_FAILED');
+  assert.deepEqual((await app.calls()).slice(offset).filter(c => c[2] === 'reverse'), [['-s', 'usb1', 'reverse', 'tcp:8081', 'tcp:8082']]);
+  assert.equal(await readFile(configPath, 'utf8'), before);
+});
+
+test('excessive command output fails within the documented limit', async t => {
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const app = await setup(t, [{ serial: 'usb1' }]);
+  assert.equal((await app.run('adb-alias', 'add', 'large', `node -e 'process.stdout.write("x".repeat(5 * 1024 * 1024))'`, '--json')).code, 0);
+  const output = await promisify(execFile)(process.execPath, [cliPath, '@large', '--json'], {
+    env: app.env, maxBuffer: 8 * 1024 * 1024, timeout: 15000,
+  }).catch(error => error);
+  assert.equal(output.code, 1);
+  const result = JSON.parse(output.stdout);
+  assert.equal(result.errors[0].code, 'COMMAND_FAILED');
+  assert.match(result.errors[0].message, /exceeded 4 MiB/);
+  assert(Buffer.byteLength(result.data[0].stdout) <= 4 * 1024 * 1024);
 });

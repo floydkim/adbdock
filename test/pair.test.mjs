@@ -189,3 +189,28 @@ test('pair verifies a successful connection even when discovery and connect exce
   assert.equal(output.code, 0, output.stdout);
   assert.equal(JSON.parse(output.stdout).data.connected, true);
 });
+
+test('a matching pairing GUID does not register a device with unverified hardware identity', async t => {
+  const app = await scenario(t, { connectDevices: { [connection]: { serial: connection, id: 'phone1', guid: 'phone1-xyz', identityFail: true } } });
+  const output = await input(app, ['pair', pairing, '--connect', connection, '--code-stdin', '--json']);
+  assert.equal(output.code, 1, output.stdout);
+  const result = JSON.parse(output.stdout);
+  assert.equal(result.data.paired, true);
+  assert.equal(result.data.connected, false);
+  assert.equal(result.errors[0].code, 'PAIR_CONNECTION_PENDING');
+  await assert.rejects(readFile(`${app.env.ADBDOCK_HOME}/config.json`), { code: 'ENOENT' });
+});
+
+test('pair preserves completed trust when the connection is refused', async t => {
+  const app = await scenario(t, { connectFail: true });
+  const output = await input(app, ['pair', pairing, '--connect', connection, '--alias', 'phone', '--code-stdin', '--json']);
+  assert.equal(output.code, 1, output.stdout);
+  const result = JSON.parse(output.stdout);
+  assert.equal(result.data.paired, true);
+  assert.equal(result.data.connected, false);
+  assert.equal(result.errors[0].code, 'PAIR_CONNECTION_PENDING');
+  assert.equal((await app.calls()).filter(c => c[0] === 'pair').length, 1);
+  assert.equal((await app.calls()).filter(c => c[0] === 'connect').length, 1);
+  assert.equal((output.stdout + output.stderr).includes('123456'), false);
+  await assert.rejects(readFile(`${app.env.ADBDOCK_HOME}/config.json`), { code: 'ENOENT' });
+});

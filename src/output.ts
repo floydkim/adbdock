@@ -36,6 +36,29 @@ export function formatDeviceTable(entries: (Device | SavedDevice)[], numbered = 
   return formatTable(rows);
 }
 
+export function formatCommandAliasTable(entries: { name: string; command: string }[], numbered = false, columns = process.stdout.columns || 80): string {
+  const numberWidth = String(entries.length).length;
+  const nameWidth = Math.min(Math.max(4, ...entries.map(a => a.name.length)), Math.max(4, Math.floor(columns / 3)));
+  const commandWidth = Math.max(1, columns - nameWidth - (numbered ? numberWidth + 4 : 2));
+  const preview = (value: string, width: number) => {
+    // A byte budget conservatively bounds wide characters without a terminal-width dependency.
+    if (Buffer.byteLength(value) <= width) return value;
+    let text = '';
+    let bytes = 0;
+    for (const char of value) {
+      bytes += Buffer.byteLength(char);
+      if (bytes > width - 1) break;
+      text += char;
+    }
+    return `${text}…`;
+  };
+  const rows = [['NAME', preview('COMMAND', commandWidth)], ...entries.map(a => [
+    preview(a.name, nameWidth), preview(a.command.replace(/\s+/g, ' '), commandWidth),
+  ])];
+  if (numbered) rows.forEach((row, i) => row.unshift(i === 0 ? '#' : String(i)));
+  return formatTable(rows);
+}
+
 export function formatTable(rows: string[][]): string {
   const widths = rows[0]!.map((_, i) => Math.max(...rows.map(row => row[i]!.length)));
   rows.splice(1, 0, widths.map(width => '-'.repeat(width)));
@@ -60,7 +83,7 @@ export function print(value: Result, json: boolean): void {
     } else if ('transports' in value.data[0]) {
       console.log(formatDeviceTable(value.data));
     } else if ('name' in value.data[0] && 'command' in value.data[0]) {
-      console.log(formatTable([['NAME', 'COMMAND'], ...value.data.map(a => [a.name, a.command.replaceAll('\n', '\\n')])]));
+      console.log(formatCommandAliasTable(value.data));
     } else console.log(JSON.stringify(value.data, null, 2));
   }
   else if (value.data !== null) console.log(JSON.stringify(value.data, null, 2));

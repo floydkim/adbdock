@@ -242,7 +242,7 @@ QR 스캐너로 스캔한다. 60초 제한은 `--timeout <ms>`로 조정할 수 
 `npm run check:package`는 설치된 패키지의 기본 목록과 등록·실행·삭제도 검사한다.
 
 실기기에서는 별도 작업 디렉터리와 `ADBDOCK_HOME`을 사용한다.
-`@screenshot -d <device> --json`의 파일 경로·PNG 헤더·크기를 확인한다.
+`@screencap -d <device> --json`의 파일 경로·PNG 헤더·크기를 확인한다.
 reverse 검증은 기존 `adb -s <serial> reverse --list`를 먼저 저장하고, 사용하지 않는
 기기 포트로 임시 매핑을 작성해 무인자·명시적 인자 동작을 각각 확인한다.
 저장 설정이 바뀌지 않았는지 확인한 뒤 이번에 만든 규칙만 제거하고 원래 목록과 비교한다.

@@ -26,7 +26,7 @@ Inspect `adbdock adb-alias list --json` before running saved scripts: presets ca
 
 ```sh
 adbdock @reverse -d <a> -d <b> --json
-adbdock @screenshot -d <a> -d <b> --json
+adbdock @screencap -d <a> -d <b> --json
 adbdock adb-alias add model 'adb shell getprop ro.product.model' --json
 adbdock @model -d <a> --json
 ```

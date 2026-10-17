@@ -5,11 +5,11 @@ import { spawn } from 'node:child_process';
 import { setup, terminal, cliPath } from './helpers.mjs';
 const tty = { skip: process.platform !== 'darwin' };
 
-test('command aliases include shake, reverse and screenshot without Metro setup', async t => {
+test('command aliases include shake, reverse and screencap without Metro setup', async t => {
   const app = await setup(t, []);
   const output = await app.run('adb-alias', 'list', '--json');
   assert.equal(output.code, 0, output.stdout);
-  assert.deepEqual(JSON.parse(output.stdout).data.map(a => a.name), ['shake', 'reverse', 'screenshot']);
+  assert.deepEqual(JSON.parse(output.stdout).data.map(a => a.name), ['shake', 'reverse', 'screencap']);
   assert.deepEqual(await app.calls(), []);
 });
 
@@ -27,7 +27,7 @@ test('overwrites require confirmation or force and deleted defaults stay deleted
   const overwrite = await app.run('adb-alias', 'add', 'shake', 'echo custom', '--json');
   assert.equal(JSON.parse(overwrite.stdout).errors[0].code, 'ALIAS_EXISTS');
   assert.equal((await app.run('adb-alias', 'add', 'shake', 'echo custom', '--force', '--json')).code, 0);
-  for (const name of ['shake', 'reverse', 'screenshot']) assert.equal((await app.run('adb-alias', 'remove', name, '--json')).code, 0);
+  for (const name of ['shake', 'reverse', 'screencap']) assert.equal((await app.run('adb-alias', 'remove', name, '--json')).code, 0);
   assert.deepEqual(JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data, []);
 });
 
@@ -81,7 +81,7 @@ test('interactive command editor can remove one chosen alias', tty, async t => {
   const app = await setup(t, []);
   await terminal(app, ['adb-alias'], [['Choose an alias number:', '1\n'], ['[e]dit', 'd\n']]);
   const list = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
-  assert.deepEqual(list.map(a => a.name), ['reverse', 'screenshot']);
+  assert.deepEqual(list.map(a => a.name), ['reverse', 'screencap']);
 });
 
 test('interactive edits show the old command and save the replacement after confirmation', tty, async t => {
@@ -215,7 +215,7 @@ test('default screenshot selects a display so foldable warnings do not corrupt P
   const app = await setup(t, [{ serial: 'usb1', displays: ['4630946784334733698', '4630946183746106243'] }]);
   const { execFile } = await import('node:child_process');
   const { promisify } = await import('node:util');
-  const output = await promisify(execFile)(process.execPath, [cliPath, '@screenshot', '-d', 'usb1', '--json'], {
+  const output = await promisify(execFile)(process.execPath, [cliPath, '@screencap', '-d', 'usb1', '--json'], {
     env: app.env, cwd: app.directory, timeout: 15000,
   });
   assert.equal(JSON.parse(output.stdout).ok, true);
@@ -223,4 +223,35 @@ test('default screenshot selects a display so foldable warnings do not corrupt P
   assert.equal(files.length, 1);
   assert.deepEqual(await readFile(`${app.directory}/${files[0]}`), Buffer.from([137,80,78,71,13,10,26,10,0,255,128]));
   assert.deepEqual((await app.calls()).find(c => c.includes('screencap')), ['-s', 'usb1', 'exec-out', 'screencap', '-p', '-d', '4630946784334733698']);
+});
+
+test('command alias previews fit the terminal while JSON keeps complete scripts', async t => {
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const app = await setup(t, []);
+  const name = 'long'.repeat(16);
+  const command = 'echo first line\n' + 'echo 한글 메시지; '.repeat(30);
+  await app.run('adb-alias', 'add', name, command, '--json');
+  for (const columns of [40, 80]) {
+    const source = `process.stdout.columns = ${columns}; process.argv = ${JSON.stringify([process.execPath, cliPath, 'adb-alias', 'list'])}; await import(${JSON.stringify(cliPath)});`;
+    const output = await promisify(execFile)(process.execPath, ['--input-type=module', '--eval', source], { env: app.env });
+    const lines = output.stdout.trimEnd().split('\n');
+    assert.equal(lines.length, 6);
+    const displayWidth = line => [...line].reduce((total, char) => total + (/[가-힣]/u.test(char) ? 2 : 1), 0);
+    assert(lines.every(line => displayWidth(line) <= columns), output.stdout);
+    assert.match(output.stdout, /…/);
+  }
+  const listed = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
+  assert.equal(listed.find(entry => entry.name === name).command, command);
+});
+
+test('interactive alias selection shows the full multiline command before choosing an action', tty, async t => {
+  const app = await setup(t, []);
+  const listed = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
+  const command = listed.find(entry => entry.name === 'screencap').command;
+  const output = await terminal(app, ['adb-alias'], [['Choose an alias number:', '3\n'], ['[e]dit', 'q\n']]);
+  const [preview, detail] = output.stdout.replaceAll('\r', '').split('Choose an alias number:');
+  assert(preview.trimEnd().split('\n').every(line => line.length <= 80), preview);
+  assert(detail.includes(command), detail);
+  assert.equal(JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data[2].command, command);
 });

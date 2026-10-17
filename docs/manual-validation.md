@@ -466,3 +466,7 @@ No screenshot was included in the public evidence. Existing watcher was left run
 Evidence in scratch rn084-validation: command-alias-full-checks.log,
 command-alias-package-checks.log, command-alias-device-validation.json.
 README and existing bilingual packaging edits remain outside this feature commit.
+
+
+The default screenshot command alias was subsequently renamed to `screencap`
+to match ADB terminology; current usage is `adbdock @screencap -d <device>`.

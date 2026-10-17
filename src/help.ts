@@ -153,7 +153,8 @@ Commands:
 
 Without a subcommand, choose an alias to edit/delete in a terminal.
 Scripts and --json get a read-only list instead.
-Built-ins: shake, reverse and screenshot. Deleted presets stay deleted.
+Built-ins: shake, reverse and screencap. Deleted presets stay deleted.
+The table shows shortened previews. Select an entry to read its full script.
 
 Examples:
   adbdock adb-alias
@@ -196,6 +197,8 @@ Examples:
 Usage:
   adbdock adb-alias list [--json]
 
+Plain output fits command previews to the terminal width. --json keeps full scripts.
+
 Examples:
   adbdock adb-alias list
   adbdock adb-alias list --json
@@ -211,7 +214,7 @@ Requires a terminal. Shows the current script; Enter keeps it unchanged.
 Confirm before saving a replacement. For automation use add --force.
 
 Examples:
-  adbdock adb-alias edit screenshot
+  adbdock adb-alias edit screencap
   adbdock adb-alias add shake 'adb shell input keyevent 82' --force
 `,
   'adb-alias remove': `adbdock adb-alias remove — Delete one saved command
@@ -222,7 +225,7 @@ Usage:
 Built-in presets can be removed too and will not reappear automatically.
 
 Examples:
-  adbdock adb-alias remove screenshot
+  adbdock adb-alias remove screencap
   adbdock adb-alias list
 `,
   '@command': `adbdock @<name> — Run a saved command for selected devices
@@ -248,7 +251,7 @@ Defaults:
     Without arguments, apply each device's saved Metro mappings, or 8081 to 8081.
     With arguments, $1 is host port; $2 is device port (default 8081).
     Manual reverse does not update saved Metro mappings.
-  screenshot
+  screencap
     Save a PNG in this directory using device name and a unique run ID.
 
 Commands run up to four devices at a time; failures are reported per device.
@@ -258,7 +261,7 @@ Use unique file paths in custom scripts; timestamps alone may collide.
 Examples:
   adbdock @shake -d phone -d emulator
   adbdock @reverse -d phone -- 8082
-  adbdock @screenshot --all
+  adbdock @screencap --all
 `,
   metro: `adbdock metro — Configure device-to-Metro connections
 

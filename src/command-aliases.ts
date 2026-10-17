@@ -1,4 +1,4 @@
-import { CliError, formatTable, result } from './output.js';
+import { CliError, formatCommandAliasTable, result } from './output.js';
 import { readLine } from './prompt.js';
 import { readConfig, saveConfig, withConfig } from './store.js';
 import type { Config } from './store.js';
@@ -6,7 +6,7 @@ import type { Config } from './store.js';
 const defaults: Record<string, string> = {
   shake: 'adb shell input keyevent 82',
   reverse: 'if [ "$#" -gt 0 ]; then adb reverse "tcp:${2:-8081}" "tcp:${1:-8081}"; else for ports in $ADBDOCK_REVERSE_PORTS; do adb reverse "tcp:${ports%:*}" "tcp:${ports#*:}" || exit; done; fi',
-  screenshot: "file=\"${ADBDOCK_DEVICE}-${ADBDOCK_RUN_ID}.png\"\ndisplay=$(adb shell dumpsys SurfaceFlinger --display-id | sed -n 's/^Display \\([0-9][0-9]*\\).*/\\1/p' | head -n 1)\nif [ -n \"$display\" ]; then set -- -d \"$display\"; else set --; fi\nadb exec-out screencap -p \"$@\" > \"$file\" && printf '%s\\n' \"$file\"",
+  screencap: "file=\"${ADBDOCK_DEVICE}-${ADBDOCK_RUN_ID}.png\"\ndisplay=$(adb shell dumpsys SurfaceFlinger --display-id | sed -n 's/^Display \\([0-9][0-9]*\\).*/\\1/p' | head -n 1)\nif [ -n \"$display\" ]; then set -- -d \"$display\"; else set --; fi\nadb exec-out screencap -p \"$@\" > \"$file\" && printf '%s\\n' \"$file\"",
 };
 
 export function getCommandAliases(config: Config): Record<string, string> {
@@ -19,10 +19,11 @@ export async function manageCommandAliases(action: string, args: string[], force
     if (args.length || force) throw new CliError('INVALID_ARGUMENT', 'Usage: adbdock adb-alias list [--json].', 2);
     const entries = Object.entries(before).map(([name, command]) => ({ name, command }));
     if (action === 'list' || !entries.length) return result(entries);
-    process.stderr.write(`${formatTable([['#', 'NAME', 'COMMAND'], ...entries.map((a, i) => [String(i + 1), a.name, a.command.replaceAll('\n', '\\n')])])}\n`);
+    process.stderr.write(`${formatCommandAliasTable(entries, true, process.stderr.columns || 80)}\n`);
     const choice = Number(await readLine('Choose an alias number: '));
     if (!Number.isInteger(choice) || choice < 1 || choice > entries.length) throw new CliError('INVALID_ARGUMENT', 'Choose one of the listed alias numbers.', 2);
     const selected = entries[choice - 1]!;
+    process.stderr.write(`\n@${selected.name}\n${selected.command}\n\n`);
     const operation = await readLine('[e]dit, [d]elete or [q]uit: ');
     if (operation === 'q' || operation === '') return result('Cancelled.');
     if (operation !== 'e' && operation !== 'd') throw new CliError('INVALID_ARGUMENT', 'Choose e, d or q.', 2);

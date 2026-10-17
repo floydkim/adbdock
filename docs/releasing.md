@@ -1,7 +1,11 @@
 # Release guide
 
 The first local bootstrap release is `adbdock@0.0.1`; the first planned OIDC
-release is `0.1.0`. The package is public under MIT. It is intended
+release is `0.1.0`. The package is public under MIT.
+The `0.0.1` bootstrap was published from the reviewed tarball; registry integrity
+and `npm exec` help from outside the checkout were verified. Trusted publishing
+is configured for `floydkim/adbdock`, workflow `release.yml`, with direct publishing
+allowed. The first real OIDC publication remains to be verified with `0.1.0`. It is intended
 for macOS with Node.js 22+ and separately installed Android Platform-Tools.
 `.github/workflows/release.yml` publishes stable GitHub Releases through npm
 Trusted Publishing (OIDC). Preparing or pushing the workflow does not publish a

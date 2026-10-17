@@ -1,0 +1,14 @@
+{
+  "name": "adbdock",
+  "owner": {
+    "name": "Floyd Kim"
+  },
+  "plugins": [
+    {
+      "name": "adbdock",
+      "source": "./plugins/adbdock",
+      "description": "Android multi-device ADB and Metro workflows."
+    }
+  ],
+  "description": "Android multi-device development workflows with adbdock."
+}

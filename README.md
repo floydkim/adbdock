@@ -4,30 +4,45 @@ A multi-device ADB CLI with optional Metro connection recovery.
 
 Requires macOS, Node.js 22+, and `adb` on PATH.
 
+## Install
+
+After the first npm release:
+
 ```sh
-npm ci
-npm test
-node dist/cli.js --help
+npm install --global adbdock
+adbdock --help
+adbdock devices
 ```
 
-To put the development checkout on PATH after building:
+Or run without a global installation:
 
 ```sh
+npx --yes adbdock@0.1.0 devices
+```
+
+Install Android SDK Platform-Tools separately and authorize each device with ADB.
+adbdock does not bundle adb, start emulators, or perform initial wireless pairing.
+
+To use a development checkout before the first release:
+
+```sh
+npm ci
+npm run build
 npm link
 adbdock devices
 ```
 
-`npm unlink --global adbdock` removes that link. This repository is private in
-package.json to prevent accidental publication; no npm name reservation is implied.
+`npm unlink --global adbdock` removes the development link. Publishing requires
+maintainer action; preparing this repository does not publish or reserve its name.
 
 ## Devices and aliases
 
 ```sh
-node dist/cli.js devices
-node dist/cli.js alias <serial> pixel
-node dist/cli.js adb --device pixel -- shell getprop ro.product.model
-node dist/cli.js adb --device pixel --device galaxy -- install ./app.apk
-node dist/cli.js adb --all --json -- shell getprop ro.product.model
+adbdock devices
+adbdock alias <serial> pixel
+adbdock adb --device pixel -- shell getprop ro.product.model
+adbdock adb --device pixel --device galaxy -- install ./app.apk
+adbdock adb --all --json -- shell getprop ro.product.model
 ```
 
 Aliases persist in `~/Library/Application Support/adbdock/config.json`.
@@ -43,17 +58,18 @@ Host commands and interactive/streaming sessions are not supported by this runne
 the same host output file.
 
 Use `ADBDOCK_ADB` for a specific adb executable and `ADBDOCK_HOME` for a separate
-configuration directory. Installation and automated tests do not modify real devices.
+configuration directory. Installation does not change device settings. The default test suite uses fixtures;
+the opt-in real-device suite creates and removes temporary reverse tunnels.
 
 ## Optional Metro connections
 
 ```sh
-node dist/cli.js metro bind pixel --port 8081
-node dist/cli.js metro bind galaxy --port 8082
-node dist/cli.js metro bind emulator-5554 --port 8083 --device-port 8081
-node dist/cli.js status --json
-node dist/cli.js metro repair --all
-node dist/cli.js metro unbind galaxy
+adbdock metro bind pixel --port 8081
+adbdock metro bind galaxy --port 8082
+adbdock metro bind emulator-5554 --port 8083 --device-port 8081
+adbdock status --json
+adbdock metro repair --all
+adbdock metro unbind galaxy
 ```
 
 `--port` is the **Mac Metro port**. `--device-port` defaults to 8081. For example,
@@ -78,10 +94,10 @@ unhealthy devices. Errors do not cause arbitrary ADB commands to be retried.
 ## Keep connections alive
 
 ```sh
-node dist/cli.js watch                 # foreground; Ctrl-C to stop
-node dist/cli.js watch --background    # detached from this terminal
-node dist/cli.js status --json         # includes watcher identity/state
-node dist/cli.js stop                  # stop either kind of watcher
+adbdock watch                 # foreground; Ctrl-C to stop
+adbdock watch --background    # detached from this terminal
+adbdock status --json         # includes watcher identity/state
+adbdock stop                  # stop either kind of watcher
 ```
 
 One watcher runs per configuration directory. It checks saved mappings every two
@@ -132,7 +148,7 @@ The service/GUID behavior follows the [Android ADB Wi-Fi architecture](https://a
 
 ## Verification and limits
 
-Run `npm run check` for type checking and isolated CLI regression tests. For an
+From a source checkout, run `npm run check` for type checking and isolated CLI regression tests. For an
 opt-in real-device check, pass explicit ADB serials:
 
 ```sh
@@ -143,9 +159,9 @@ This uses temporary configuration and reverse ports, local HTTP probe servers,
 and its own watcher. It verifies Android-to-host traffic, shared/separate ports,
 repair and conflict handling, and writes a JSON report under `.test-results/`.
 It does not install an app or verify RN Fast Refresh. See the
-[test runbook](docs/testing.md) for automation, RN/LLM scenarios and cleanup.
+source-checkout runbook `docs/testing.md` for automation, RN/LLM scenarios and cleanup.
 
-See [validation record](docs/manual-validation.md)
+See source-checkout validation record `docs/manual-validation.md`
 for scenario coverage and pending checks. RN 0.84.1 was tested on an Android 16
 emulator and a Galaxy Z Flip4 over Wi-Fi: shared/separate Metros, state-preserving
 Fast Refresh, missing-tunnel recovery and wireless ADB reconnect. These are short
@@ -155,3 +171,46 @@ Multiple instances of the same AVD have no unique persistent AVD identity. Exact
 serial selection remains available, but a mapping created in that ambiguous state
 is not migrated to another instance when one disappears. Use distinct AVDs for
 persistent mappings across restarts.
+
+
+## Claude Code and Codex plugins
+
+The Git repository also provides a small instruction-only plugin for Android
+device selection, multi-device checks and Metro recovery. Its shared skill reads
+short reference files only when needed. It needs the CLI installed separately;
+there are no hooks, MCP servers or automatic CLI installation.
+
+After this repository is published on GitHub, replace `OWNER/REPO` below with its
+actual address (none is configured yet):
+
+```sh
+# Claude Code
+claude plugin marketplace add OWNER/REPO
+claude plugin install adbdock@adbdock
+
+# Codex CLI with plugin commands
+codex plugin marketplace add OWNER/REPO
+codex plugin add adbdock@adbdock
+```
+
+For local testing, use the absolute checkout path instead of `OWNER/REPO`.
+Open a new session after installation. The skill can be selected for relevant
+Android tasks; it does not force invocation or allocate devices/ports for agents.
+Both hosts use `plugins/adbdock/skills/adbdock/SKILL.md`. Marketplace/manifest
+files differ by host. Plugins ship through Git; they are not included in the npm
+CLI tarball. This preparation has not installed or published either plugin.
+
+## Maintainers
+
+Run `npm run check` and `npm run check:package` before release. The latter packs
+and installs the actual tarball under a temporary global prefix, verifies its CLI
+with production dependencies only, and removes its test resources. Full release
+steps are in `docs/releasing.md` in the source checkout.
+
+The npm package includes compiled CLI JavaScript, this README and the MIT license.
+It does not include development tests, device logs, local configuration or TypeScript
+build tools. The install commands above require the first release to exist.
+
+## License
+
+MIT. See LICENSE.

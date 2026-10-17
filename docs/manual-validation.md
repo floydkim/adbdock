@@ -275,3 +275,34 @@ provides RN source/port/debug-host setup and evidence requirements, and separate
 human USB/sleep actions from automated checks. Sleep remains deferred and
 long-running stability will be evaluated during real work. This automation run
 did not reinstall the RN app or repeat every RN UI scenario.
+
+
+## Follow-up: npm release preparation and lightweight agent plugins
+
+Prepared adbdock@0.1.0 for npm with user-selected MIT licensing, executable bin,
+public registry configuration, prepack build and prepublishOnly checks. The
+consumer prepare hook was removed. The registry query returned E404 for adbdock
+at preparation time; this does not reserve the name or guarantee publication.
+No Git remote exists yet, so repository URLs were not invented.
+
+All 53 tests and typecheck passed. `check:package` packed the actual 15-file
+artifact, installed production dependencies under a temporary global prefix,
+verified installed help/devices/background watcher start-stop, npm exec (npx
+path) and publish dry-run. A separate SIGINT injection immediately after watcher
+startup verified that the checker stopped its own watcher and removed temporary
+config. The tarball is CLI JS, README, LICENSE and package.json only; source,
+device evidence and Git plugins are excluded. Nothing was published.
+
+Added a Git-based plugin shared by Claude Code and Codex: a 17-line/143-word
+SKILL.md with three on-demand references (15, 15, 21 lines). Both marketplaces
+point at the same plugin directory. There are no hooks, MCP servers or automatic
+CLI installation. Skill guidance distinguishes device/port allocation, config
+isolation versus physical rules, task-owned watcher cleanup and UI/HMR evidence.
+
+Claude strict plugin and marketplace validation passed without warnings. The
+portable plugin passed its official JSON schema, the skill passed quick_validate,
+and all local reference links resolved. Codex CLI 0.162.1 listed adbdock@adbdock
+as available using command-local marketplace overrides without installation or
+user settings changes. Read-only review found no important issue. Actual plugin
+installation, new-session skill selection, Git hosting and public publication
+remain unverified/not performed. CLI and plugin instructions are not public yet.

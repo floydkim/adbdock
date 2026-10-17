@@ -1,0 +1,12 @@
+{
+  "name": "adbdock",
+  "interface": { "displayName": "adbdock" },
+  "plugins": [
+    {
+      "name": "adbdock",
+      "source": { "source": "local", "path": "./plugins/adbdock" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}

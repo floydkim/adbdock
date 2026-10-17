@@ -226,6 +226,19 @@ adbdock metro unbind phone --device-port 8081
 CLI와 플러그인은 어느 쪽을 먼저 설치해도 됩니다. 설치한 스킬이 현재 세션에 나타나지
 않으면 새 세션을 시작하세요. 관련 작업에서 스킬이 자동 선택될 수 있지만 보장되지는 않습니다.
 
+플러그인은 CLI와 별도로 업데이트합니다. GitHub의 플러그인 변경을 가져오려면:
+
+```sh
+# Claude Code
+claude plugin marketplace update adbdock
+claude plugin update adbdock@adbdock
+# Codex
+codex plugin marketplace upgrade adbdock
+```
+
+사용 중인 클라이언트에서 설치된 플러그인 버전도 확인하고 새 세션에서 사용하세요.
+CLI 업데이트는 별도로 `npm i -g adbdock@latest`를 실행합니다.
+
 병렬 작업에서는 기기 별칭과 Metro 포트를 작업별로 배정하세요. adbdock은 자원을
 예약하지 않으며, `ADBDOCK_HOME`을 분리해도 실제 기기와 reverse 규칙은 공유됩니다.
 

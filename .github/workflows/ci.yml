@@ -26,12 +26,55 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - name: Validate plugin release
+        env:
+          PLUGIN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: npm run check:plugin -- --base "$PLUGIN_BASE"
       - name: Typecheck and regression tests
         run: npm run check
       - name: Package installation and publish dry run
         run: npm run check:package
+
+  version-plugin:
+    name: Update plugin version
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: plugin-version-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Bump and push plugin version if needed
+        env:
+          CHECKED_SHA: ${{ github.sha }}
+        run: |
+          if [ "$(git rev-parse HEAD)" != "$CHECKED_SHA" ]; then
+            echo "A newer main commit exists; its CI will handle pending plugin changes."
+            exit 0
+          fi
+          node scripts/plugin.mjs auto-version
+          node scripts/plugin.mjs check
+          if git diff --quiet -- plugins/adbdock/plugin.json plugins/adbdock/.claude-plugin/plugin.json; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add plugins/adbdock/plugin.json plugins/adbdock/.claude-plugin/plugin.json
+          git commit -m 'chore: bump agent plugin version'
+          git push origin HEAD:main

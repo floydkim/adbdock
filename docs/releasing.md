@@ -1,4 +1,4 @@
-# npm release preparation
+# Release guide
 
 The package is configured as `adbdock@0.1.0`, public, under MIT. It is intended
 for macOS with Node.js 22+ and separately installed Android Platform-Tools.
@@ -54,10 +54,9 @@ guarantee that publication will succeed. Do not publish over an unexpected
 existing package. If the name is unavailable, choose a different/scoped name
 and repeat packaging checks.
 
-No Git remote is currently configured. Set repository/homepage/bugs metadata
-when the actual public source URL is known; do not invent one. If publication is
-from a private source checkout, remember that the tarball's JavaScript and README
-are still public under the chosen license.
+The source repository is https://github.com/floydkim/adbdock. Before npm publication,
+set repository/homepage/bugs metadata to match that source. The package's JavaScript
+and README are public under MIT once published.
 
 ## Publish only when explicitly requested
 
@@ -91,30 +90,76 @@ next release, select a new version; published name/version pairs cannot be reuse
 
 ## Git-based skills plugin
 
-The npm package remains CLI-only. `plugins/adbdock/` is an instruction-only
-plugin with one shared skill and four on-demand references. Its root plugin.json
-uses the portable Codex format; .claude-plugin/plugin.json supports Claude Code.
-The repository's two marketplace catalogs both point to that same directory.
+The npm CLI and the Git-based plugin have independent versions. Both Claude Code
+and Codex use the same skill files, so these manifests must have the same plugin
+name and version:
 
-Before sharing the repository, validate the plugin and marketplace:
+- `plugins/adbdock/plugin.json` — portable Codex manifest
+- `plugins/adbdock/.claude-plugin/plugin.json` — Claude Code manifest
+
+The two marketplace catalogs point to `plugins/adbdock/` in this repository.
+No separate upload or npm publication is needed for this Git distribution.
+Plugin updates are versioned automatically after a successful CI run on `main`. Existing users must
+refresh their installation; a push does not immediately update every client.
+
+### Automatic plugin releases
+
+Change the plugin instructions, references or metadata and commit normally.
+PRs validate the manifests, marketplaces and local Markdown references; they do
+not require a manual version increase. A version decrease is still rejected.
+
+After a `main` push passes both CI jobs, the version job:
+
+1. Checks that `main` still points to the commit that passed CI. A newer commit
+   is left for its own CI run to handle.
+2. Compares the plugin directory with the commit that introduced its current version.
+3. If there are pending changes, increases the patch version in both manifests,
+   validates the result and pushes a bot commit to `main`.
+
+Comparing against the version's history also catches plugin changes from an
+interrupted run followed by a CLI-only push. A manual version increase that
+includes the changes is already a release, so it is not increased again.
+The bot's version-only commit is also treated as released. Its `GITHUB_TOKEN`
+push does not trigger another push workflow, preventing a CI loop.
+
+The version job alone has `contents: write`; PR checks remain read-only.
+The branch must allow this bot push. Updates use ordinary pushes, never force
+pushes. If another commit arrives during the push, the push is rejected and the
+new commit's successful CI can handle the remaining changes.
+No CLI/npm version, package-lock, tag or GitHub Release is changed.
+
+### Manual version selection and local checks
+
+Patch updates are automatic. To choose a minor or major version deliberately:
+
+```sh
+npm run version:plugin -- minor
+npm run check
+```
+
+`version:plugin` updates both manifests together. It also accepts `patch`, `major`
+or an explicit version such as `0.2.0`. Only stable `major.minor.patch` versions
+are accepted, and the new version must be greater than the current one.
+The command does not commit, create tags or push.
+
+`npm run check:plugin` validates names/versions, marketplace paths and local
+Markdown references; it also runs as part of `npm run check`. To use Claude Code's
+own validator when available:
 
 ```sh
 claude plugin validate ./plugins/adbdock --strict
 claude plugin validate . --strict
 ```
 
-Codex can inspect the local catalog without registering/installing it or modifying
-user settings (substitute the absolute checkout path):
+GitHub Releases and tags are optional for the current Git marketplace setup.
+GitHub's [workflow triggering rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow)
+explain the bot token behavior.
 
-```sh
-codex -c 'marketplaces.adbdock.source_type="local"' \
-  -c 'marketplaces.adbdock.source="/ABSOLUTE/CHECKOUT"' \
-  plugin list --marketplace adbdock --available --json
-```
+### User updates and verification
 
-Check that adbdock@adbdock is available. Once a real Git remote is chosen and
-published, users follow README's marketplace installation commands. Installation
-and an actual new-session selection check are separate from manifest validation;
-validation alone does not prove the model will select a skill. Keep the two plugin
-manifest versions consistent and bump them when distributing plugin changes.
-The CLI's npm release and the Git plugin can be updated independently.
+See the [usage guide](usage.md#working-with-coding-agents) for update commands.
+Test the installed plugin in a new session; JSON validation alone does not prove
+that a client refreshed its cache or that the agent will select the skill.
+
+Official behavior: [Claude Code version handling](https://code.claude.com/docs/en/plugins-reference#version)
+and [Codex Git marketplace refresh](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli).

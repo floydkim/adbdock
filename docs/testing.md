@@ -21,7 +21,10 @@ npm run check
 
 `main` push와 PR, Actions 화면의 수동 실행으로 검사한다.
 macOS runner에서 Node.js 22·24 각각 `npm ci`, `npm run check`,
-`npm run check:package`를 실행한다. 패키지 검사는 임시 설치와 publish dry-run만
+`npm run check:package`를 실행한다. 두 플러그인 manifest와 marketplace·참고 문서를
+검사한다. PR에서 수동 버전 증가는 요구하지 않으며 버전 하락은 거부한다.
+`main` push의 검사가 모두 통과하면 변경된 플러그인의 patch 버전을 봇 커밋으로 올린다.
+수동으로 올린 버전과 이미 처리한 변경은 다시 올리지 않는다. 패키지 검사는 임시 설치와 publish dry-run만
 수행하며 실제 npm 배포는 하지 않는다.
 
 실기기·Android SDK·Metro 없이 fixture 기반으로 실행한다. 실제 기기 연결,

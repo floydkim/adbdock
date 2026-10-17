@@ -231,6 +231,19 @@ See the [README](../README.md#claude-code-and-codex) for plugin installation.
 Install the CLI and plugin in either order. If the installed skill does not appear
 in the current session, start a new one. Automatic skill selection for relevant tasks is not guaranteed.
 
+Update the plugin separately from the CLI. To fetch plugin changes from GitHub:
+
+```sh
+# Claude Code
+claude plugin marketplace update adbdock
+claude plugin update adbdock@adbdock
+# Codex
+codex plugin marketplace upgrade adbdock
+```
+
+Check the installed plugin version in your client and use it in a new session.
+Update the CLI separately with `npm i -g adbdock@latest`.
+
 For parallel tasks, assign device aliases and Metro ports to each task. adbdock
 does not reserve resources. Separate `ADBDOCK_HOME` directories still share the
 physical devices and their reverse rules.

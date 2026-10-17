@@ -15,6 +15,12 @@ Commands:
   adbdock adb
     Run an ADB command on selected devices.
 
+  adbdock adb-alias
+    Save and manage commands to reuse across devices.
+
+  adbdock @name
+    Run a saved command on selected devices.
+
   adbdock metro
     Configure and repair device-to-Metro connections.
 
@@ -118,7 +124,7 @@ Interactive shells, streams and host commands are unsupported.
 Pull and bugreport require a single device.
 
 Options:
-  --device <device>
+  -d, --device <device>
     Select one device. Repeat this option to select several.
   --all
     Select every online device, including devices without saved aliases.
@@ -132,6 +138,127 @@ Examples:
   adbdock adb --device phone -- shell getprop ro.product.model
   adbdock adb --device phone --device emulator -- shell getprop ro.build.version.release
   adbdock adb --device phone --timeout 120000 -- install -r app.apk
+`,
+  'adb-alias': `adbdock adb-alias — Manage saved device commands
+
+Commands:
+  adbdock adb-alias add
+    Save a host shell script containing device commands.
+  adbdock adb-alias list
+    Show names and commands without changing them.
+  adbdock adb-alias edit
+    Edit one command interactively.
+  adbdock adb-alias remove
+    Delete one command, including a built-in preset.
+
+Without a subcommand, choose an alias to edit/delete in a terminal.
+Scripts and --json get a read-only list instead.
+Built-ins: shake, reverse and screenshot. Deleted presets stay deleted.
+
+Examples:
+  adbdock adb-alias
+  adbdock adb-alias list --json
+  adbdock adb-alias add model 'adb shell getprop ro.product.model'
+  adbdock @model -d phone
+
+Run adbdock adb-alias add --help for scripts and overwrite rules.
+`,
+  'adb-alias add': `adbdock adb-alias add — Save a reusable shell command
+
+Usage:
+  adbdock adb-alias add <name> <command> [--force]
+
+Use single quotes around the command so variables expand when it runs.
+Each plain adb call is pinned to the selected device. Do not supply adb -s.
+Redirects, pipelines and tools such as open run on the Mac once per device.
+The shell is /bin/sh; aliases are trusted scripts, not a sandbox.
+
+Options:
+  --force
+    Replace an existing alias without prompting. Required in scripts.
+    Otherwise, show old/new commands and ask before overwriting.
+
+Variables available at execution:
+  $ADBDOCK_DEVICE   Filename-safe device alias or serial.
+  $ADBDOCK_MODEL    Filename-safe model name.
+  $ADBDOCK_RUN_ID   Unique timestamp/UUID per device execution.
+  $ADBDOCK_REVERSE_PORTS  Saved device:host port pairs, or 8081:8081.
+  $ADBDOCK_SERIAL   Original ADB target serial.
+  $1, $2           Arguments supplied after -- when running an alias.
+
+Examples:
+  adbdock adb-alias add shake 'adb shell input keyevent 82'
+  adbdock adb-alias add files 'adb shell ls "$1"'
+  adbdock @files -d phone -- /sdcard
+`,
+  'adb-alias list': `adbdock adb-alias list — Show saved commands
+
+Usage:
+  adbdock adb-alias list [--json]
+
+Examples:
+  adbdock adb-alias list
+  adbdock adb-alias list --json
+
+Run adbdock adb-alias without a subcommand to select, edit or delete.
+`,
+  'adb-alias edit': `adbdock adb-alias edit — Edit one saved command
+
+Usage:
+  adbdock adb-alias edit <name>
+
+Requires a terminal. Shows the current script; Enter keeps it unchanged.
+Confirm before saving a replacement. For automation use add --force.
+
+Examples:
+  adbdock adb-alias edit screenshot
+  adbdock adb-alias add shake 'adb shell input keyevent 82' --force
+`,
+  'adb-alias remove': `adbdock adb-alias remove — Delete one saved command
+
+Usage:
+  adbdock adb-alias remove <name>
+
+Built-in presets can be removed too and will not reappear automatically.
+
+Examples:
+  adbdock adb-alias remove screenshot
+  adbdock adb-alias list
+`,
+  '@command': `adbdock @<name> — Run a saved command for selected devices
+
+Usage:
+  adbdock @<name> -d <device> [-d <device>] [-- <arguments>]
+  adbdock @<name> --all [-- <arguments>]
+
+Options:
+  -d, --device <device>
+    Device alias, serial or ID. Repeat for several devices.
+  --all
+    Select every online device. Choose --device or --all explicitly.
+  --timeout <milliseconds>
+    Per-device limit: 10000 by default; range 1..3600000.
+  --
+    Pass remaining arguments to the script as $1, $2 and so on.
+
+Defaults:
+  shake
+    Send keyevent 82 to open the RN developer menu.
+  reverse
+    Without arguments, apply each device's saved Metro mappings, or 8081 to 8081.
+    With arguments, $1 is host port; $2 is device port (default 8081).
+    Manual reverse does not update saved Metro mappings.
+  screenshot
+    Save a PNG in this directory using device name and a unique run ID.
+
+Commands run up to four devices at a time; failures are reported per device.
+Timeout or Ctrl+C terminates owned shell/child jobs. Mutations are not retried.
+Use unique file paths in custom scripts; timestamps alone may collide.
+
+Examples:
+  adbdock @shake -d phone -d emulator
+  adbdock @reverse -d phone -- 8082
+  adbdock @screenshot --all
 `,
   metro: `adbdock metro — Configure device-to-Metro connections
 
@@ -307,8 +434,8 @@ export function helpFor(args: string[]): string | undefined {
   if (!requested) return;
   const command = args[0]?.startsWith('-') ? '' : args[0] ?? '';
   if (!command) return overview;
-  const topic = (command === 'metro' || command === 'watch') && args[1] && !args[1].startsWith('-') ? `${command} ${args[1]}` : command;
-  const text = details[topic];
+  const topic = (command === 'metro' || command === 'watch' || command === 'adb-alias') && args[1] && !args[1].startsWith('-') ? `${command} ${args[1]}` : command;
+  const text = details[command.startsWith('@') ? '@command' : topic];
   if (typeof text !== 'string') throw new CliError('INVALID_ARGUMENT', `No help for '${topic}'. Run adbdock --help.`, 2);
   return `${text}
 Common options:

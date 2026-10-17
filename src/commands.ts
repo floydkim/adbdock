@@ -2,9 +2,10 @@ import { adb, mapLimit } from './adb.js';
 import type { Device } from './devices.js';
 import { CliError, result } from './output.js';
 
+export const deviceCommands = ['shell', 'install', 'install-multiple', 'uninstall', 'push', 'pull', 'bugreport', 'get-state', 'get-serialno', 'get-devpath', 'jdwp', 'reverse', 'forward', 'reboot'];
+
 export function validateCommand(args: string[]): void {
-  const allowed = ['shell', 'install', 'install-multiple', 'uninstall', 'push', 'pull', 'bugreport', 'get-state', 'get-serialno', 'get-devpath', 'jdwp', 'reverse', 'forward', 'reboot'];
-  if (!args[0] || !allowed.includes(args[0])) throw new CliError('INVALID_ARGUMENT', 'Expected a finite device command (shell, install, push, pull, reverse, ...). Host commands and streams are unsupported.', 2);
+  if (!args[0] || !deviceCommands.includes(args[0])) throw new CliError('INVALID_ARGUMENT', 'Expected a finite device command (shell, install, push, pull, reverse, ...). Host commands and streams are unsupported.', 2);
   if (args[0] === 'shell' && (args.length === 1 || args[1]?.startsWith('-'))) {
     throw new CliError('INVALID_ARGUMENT', 'Interactive shell and shell transport flags are unsupported. Supply a shell command.', 2);
   }

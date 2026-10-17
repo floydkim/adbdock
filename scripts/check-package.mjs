@@ -27,7 +27,7 @@ try {
   const packed = JSON.parse((await exec('npm', ['pack', '--json', '--pack-destination', directory], { cwd: root, timeout: 60000 })).stdout)[0];
   controller.signal.throwIfAborted();
   const names = packed.files.map(file => file.path);
-  for (const name of ['package.json', 'README.md', 'LICENSE', 'dist/cli.js', 'dist/help.js', 'dist/pair.js', 'dist/qr.js', 'dist/prompt.js', 'dist/alias.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
+  for (const name of ['package.json', 'README.md', 'LICENSE', 'dist/cli.js', 'dist/help.js', 'dist/pair.js', 'dist/qr.js', 'dist/prompt.js', 'dist/alias.js', 'dist/command-aliases.js', 'dist/alias-runner.js', 'dist/watch-entry.js']) assert(names.includes(name), `Missing ${name}`);
   assert(names.every(name => ['package.json', 'README.md', 'LICENSE'].includes(name) || /^dist\/[^/]+\.js$/.test(name)), 'Unexpected package files');
   assert(packed.files.find(file => file.path === 'dist/cli.js').mode & 0o111, 'CLI is not executable');
   const tarball = path.join(directory, packed.filename);
@@ -44,6 +44,13 @@ try {
   assert(help.ok && help.data.includes('adbdock pair'));
   assert((await cli('metro', 'bind', '--help')).data.includes('--device-port'));
   assert.deepEqual((await cli('devices')).data, []);
+  assert.deepEqual((await cli('adb-alias', 'list')).data.map(a => a.name), ['shake', 'reverse', 'screenshot']);
+  await writeFile(env.FAKE_ADB_STATE, JSON.stringify({ devices: [{ serial: 'package-test' }] }));
+  assert((await cli('adb-alias', 'add', 'probe', 'adb shell echo alias-probe')).ok);
+  const aliasResult = await cli('@probe', '-d', 'package-test');
+  assert(aliasResult.ok && aliasResult.data[0].stdout.includes('alias-probe'));
+  assert((await cli('adb-alias', 'remove', 'probe')).ok);
+  await writeFile(env.FAKE_ADB_STATE, '{"devices":[]}');
   assert.deepEqual((await cli('pair', '--list')).data, []);
   const qrScan = await exec(executable, ['pair', '--qr', '--timeout', '1', '--json'], { env, timeout: 20000 }).catch(error => error);
   assert.equal(JSON.parse(qrScan.stdout).errors[0].code, 'PAIR_SCAN_TIMEOUT');
@@ -59,7 +66,7 @@ try {
   assert.equal(dryRun.name, manifest.name);
   controller.signal.throwIfAborted();
   console.log(JSON.stringify({ ok: true, name: packed.name, version: packed.version, files: names,
-    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
+    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed alias presets, registration, targeted execution and removal', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
 } finally {
   // Stop only the watcher created with this temporary configuration.
   if (installed) await cli('watch', 'stop');

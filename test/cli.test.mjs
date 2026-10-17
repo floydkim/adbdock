@@ -21,7 +21,7 @@ test('unknown commands return a JSON argument error', () => {
 });
 
 test('command help explains options and notation without accessing devices or config', () => {
-  const commands = ['devices', 'alias', 'pair', 'adb', 'metro', 'metro bind', 'metro unbind', 'metro repair', 'status', 'watch', 'watch start', 'watch stop', 'watch status'];
+  const commands = ['devices', 'alias', 'pair', 'adb', 'adb-alias', 'adb-alias add', 'adb-alias list', 'adb-alias edit', 'adb-alias remove', '@command', 'metro', 'metro bind', 'metro unbind', 'metro repair', 'status', 'watch', 'watch start', 'watch stop', 'watch status'];
   for (const command of commands) {
     const output = spawnSync(process.execPath, [cli.pathname, ...command.split(' '), '--help', '--json'], {
       encoding: 'utf8', env: { ...process.env, ADBDOCK_ADB: '/missing/adbdock-help-adb', ADBDOCK_HOME: '/missing/adbdock-help-config' },
@@ -29,7 +29,7 @@ test('command help explains options and notation without accessing devices or co
     assert.equal(output.status, 0, `${command}: ${output.stdout}`);
     const help = JSON.parse(output.stdout);
     assert.equal(help.ok, true);
-    assert.match(help.data, new RegExp(`adbdock ${command}`));
+    assert.match(help.data, new RegExp(`adbdock ${command.startsWith('@') ? '@<name>' : command}`));
     assert.match(help.data, /Examples:/);
     assert.match(help.data, /<value>.*required/);
     assert.match(help.data, /\[part\].*optional/);

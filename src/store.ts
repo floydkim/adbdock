@@ -24,6 +24,7 @@ export interface Config {
   schemaVersion: 1;
   devices: SavedDevice[];
   bindings: Binding[];
+  commandAliases?: Record<string, string>;
 }
 
 export const home = path.resolve(process.env.ADBDOCK_HOME ?? path.join(homedir(), 'Library', 'Application Support', 'adbdock'));
@@ -36,7 +37,10 @@ export function isPort(value: unknown): value is number {
 export async function readConfig(): Promise<Config> {
   try {
     const value = JSON.parse(await readFile(configPath, 'utf8'));
-    if (value.schemaVersion !== 1 || !Array.isArray(value.devices) || !Array.isArray(value.bindings)
+    if ((value.commandAliases !== undefined && (!value.commandAliases || typeof value.commandAliases !== 'object'
+        || Array.isArray(value.commandAliases) || !Object.entries(value.commandAliases).every(([name, command]) =>
+          /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name) && typeof command === 'string' && command.trim())))
+      || value.schemaVersion !== 1 || !Array.isArray(value.devices) || !Array.isArray(value.bindings)
       || !value.devices.every((d: SavedDevice) => d && typeof d.id === 'string' && typeof d.kind === 'string'
         && (d.alias === undefined || typeof d.alias === 'string') && Array.isArray(d.serials) && d.serials.every(s => typeof s === 'string')
         && (d.wirelessServices === undefined || (Array.isArray(d.wirelessServices) && d.wirelessServices.every(s => typeof s === 'string'))))

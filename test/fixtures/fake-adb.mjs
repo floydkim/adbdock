@@ -43,6 +43,12 @@ if (args[0] === 'devices') {
   }
   else if (command.join(' ') === 'shell getprop persist.adb.wifi.guid') console.log(device.guid ?? '');
   else if (command.join(' ') === 'emu avd name') console.log(`${device.avd ?? 'Pixel_API_35'}\nOK`);
+  else if (command.join(' ') === 'shell dumpsys SurfaceFlinger --display-id') {
+    for (const id of device.displays ?? []) console.log(`Display ${id} (HWC display 0): port=130`);
+  } else if (command.slice(0, 3).join(' ') === 'exec-out screencap -p') {
+    if (device.displays?.length > 1 && !command.includes('-d')) console.log('[Warning] Multiple displays were found.');
+    process.stdout.write(Buffer.from([137,80,78,71,13,10,26,10,0,255,128]));
+  }
   else if (command[0] === 'reverse') {
     device.reverse ??= {};
     if (command[1] === '--list') {
@@ -53,7 +59,7 @@ if (args[0] === 'devices') {
       const ports = command.filter(arg => arg.startsWith('tcp:'));
       device.reverse[ports[0]] = ports[1];
     }
-    if (command[1] !== '--list') writeFileSync(statePath, JSON.stringify(state));
+    if (command[1] !== '--list' && !state.recordOnlyReverse) writeFileSync(statePath, JSON.stringify(state));
   } else if (command[0] === 'shell' && command.join(' ').includes('toybox nc')) {
     if (device.probeFail) { console.error('probe failed'); process.exit(1); }
     if (device.probeHang) { await new Promise(resolve => setTimeout(resolve, 3000)); }

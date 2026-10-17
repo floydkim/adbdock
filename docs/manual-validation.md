@@ -429,3 +429,40 @@ Package install verified start/status/stop, cleanup, QR/help, npm exec and publi
 dry-run. Read-only review found no remaining important issue. No package was
 published. Evidence: watch-subcommands-checks.log and
 watch-subcommands-package-checks.log in scratch rn084-validation.
+
+## Saved command aliases — 2026-10-17
+
+Added `adb-alias add/list/edit/remove`, a bare interactive selector/editor, and
+`@name -d <device>` / repeated `-d` / `--all` execution. Presets: shake, reverse,
+screenshot. Scripts run in a separate host POSIX shell per device; plain adb calls
+are pinned to that device. Positional parameters and environment variables support
+reusable commands and unique filenames. Defaults can be edited/deleted persistently;
+confirmation and config locks protect overwrites, including concurrent changes.
+Timeout and Ctrl+C terminate owned process groups; no command is retried.
+
+Reverse without arguments applies every saved mapping for each selected device,
+falling back to 8081→8081; explicit arguments override for this run without changing
+saved bindings. A real Flip4 capture revealed that screencap prints multi-display
+warnings to stdout before the PNG. The preset now discovers the first physical
+display ID and passes `-d` explicitly, with default capture when none is discovered.
+A regression fixture reproduces the warning, and the resulting file is checked
+byte-for-byte. Capture contents/UI correctness are separate from PNG validity.
+
+Typecheck and all 112 tests passed (no skips). Production-only installed package
+checks covered preset listing, custom registration/execution/removal, watcher
+lifecycle, QR/help, npm exec and publish dry-run; nothing was published.
+Read-only independent review found no important issue. The lightweight agent
+reference was checked against a two-device command registration/execution scenario.
+
+Galaxy Z Flip4 over Wi-Fi: preset screenshot produced a valid 1080×2640 PNG;
+custom model command returned SM-F721N; custom alias removal succeeded. Isolated
+config + unused device ports verified saved-mapping and explicit-argument reverse
+behavior, unchanged saved bindings, and exact restoration of the original reverse
+list. Original test/user config hashes were unchanged. No emulator was connected;
+concurrent multi-device execution was verified with fake ADB, not real devices in
+this run. Shake was not physically invoked; its ADB command is covered by fixtures.
+No screenshot was included in the public evidence. Existing watcher was left running.
+
+Evidence in scratch rn084-validation: command-alias-full-checks.log,
+command-alias-package-checks.log, command-alias-device-validation.json.
+README and existing bilingual packaging edits remain outside this feature commit.

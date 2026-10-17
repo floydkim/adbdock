@@ -33,6 +33,10 @@ export function formatDeviceTable(entries: (Device | SavedDevice)[], numbered = 
     'transports' in d ? d.serial : d.serials.at(-1) ?? d.id,
   ])];
   if (numbered) rows.forEach((row, i) => row.unshift(i === 0 ? '#' : String(i)));
+  return formatTable(rows);
+}
+
+export function formatTable(rows: string[][]): string {
   const widths = rows[0]!.map((_, i) => Math.max(...rows.map(row => row[i]!.length)));
   rows.splice(1, 0, widths.map(width => '-'.repeat(width)));
   return rows.map(row => row.map((cell, i) => cell.padEnd(widths[i]!)).join('  ').trimEnd()).join('\n');
@@ -55,6 +59,8 @@ export function print(value: Result, json: boolean): void {
       }
     } else if ('transports' in value.data[0]) {
       console.log(formatDeviceTable(value.data));
+    } else if ('name' in value.data[0] && 'command' in value.data[0]) {
+      console.log(formatTable([['NAME', 'COMMAND'], ...value.data.map(a => [a.name, a.command.replaceAll('\n', '\\n')])]));
     } else console.log(JSON.stringify(value.data, null, 2));
   }
   else if (value.data !== null) console.log(JSON.stringify(value.data, null, 2));

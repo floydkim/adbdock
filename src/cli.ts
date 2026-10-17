@@ -5,6 +5,8 @@ import { devices, remember, resolveDevice, selectDevices } from './devices.js';
 import { isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
 import { applyBinding, problem, removeBinding, repairBindings } from './link.js';
+import { getCommandAliases, manageCommandAliases } from './command-aliases.js';
+import { runAliasCommands } from './alias-runner.js';
 import { helpFor } from './help.js';
 import { configureAlias } from './alias.js';
 import { pairDevice, pairingServices } from './pair.js';
@@ -15,7 +17,7 @@ const args = process.argv.slice(2);
 const separator = args.indexOf('--');
 const json = (separator < 0 ? args : args.slice(0, separator)).includes('--json');
 
-function options(input: string[], definitions: Record<string, { type: 'string' | 'boolean'; multiple?: boolean }> = {}): { positionals: string[]; values: Record<string, string | boolean | string[] | undefined> } {
+function options(input: string[], definitions: Record<string, { type: 'string' | 'boolean'; multiple?: boolean; short?: string }> = {}): { positionals: string[]; values: Record<string, string | boolean | string[] | undefined> } {
   try {
     return parseArgs({ args: input, allowPositionals: true, options: { json: { type: 'boolean' }, ...definitions } });
   } catch (error) { throw new CliError('INVALID_ARGUMENT', (error as Error).message, 2); }
@@ -65,19 +67,30 @@ async function main() {
       connect: parsed.values.connect as string | undefined, codeStdin: Boolean(parsed.values['code-stdin']), qr: Boolean(parsed.values.qr), timeout }));
     return;
   }
-  if (args[0] === 'adb') {
-    if (separator < 0) throw new CliError('INVALID_ARGUMENT', 'Separate adbdock options and ADB arguments with --.', 2);
-    const parsed = options(args.slice(1, separator), { device: { type: 'string', multiple: true }, all: { type: 'boolean' }, timeout: { type: 'string' } });
+  if (args[0] === 'adb-alias') {
+    const explicit = args[1] && !args[1].startsWith('-');
+    const action = explicit ? args[1]! : process.stdin.isTTY && !json ? 'interactive' : 'list';
+    const parsed = options(args.slice(explicit ? 2 : 1), { force: { type: 'boolean' } });
+    emit(await manageCommandAliases(action, parsed.positionals, Boolean(parsed.values.force)));
+    return;
+  }
+  if (args[0] === 'adb' || args[0]?.startsWith('@')) {
+    const aliasName = args[0] === 'adb' ? undefined : args[0]!.slice(1);
+    if (aliasName === undefined && separator < 0) throw new CliError('INVALID_ARGUMENT', 'Separate adbdock options and ADB arguments with --.', 2);
+    const parsed = options(separator < 0 ? args.slice(1) : args.slice(1, separator), { device: { type: 'string', multiple: true, short: 'd' }, all: { type: 'boolean' }, timeout: { type: 'string' } });
     if (parsed.positionals.length) throw new CliError('INVALID_ARGUMENT', 'Unexpected arguments before --.', 2);
-    const command = args.slice(separator + 1);
-    validateCommand(command);
+    const command = separator < 0 ? [] : args.slice(separator + 1);
+    if (aliasName === undefined) validateCommand(command);
     const timeout = Number(parsed.values.timeout ?? 10_000);
     if (!Number.isInteger(timeout) || timeout < 1 || timeout > 3_600_000) throw new CliError('INVALID_ARGUMENT', '--timeout must be 1..3600000 milliseconds.', 2);
     const config = await readConfig();
+    const aliases = getCommandAliases(config);
+    if (aliasName !== undefined && !Object.hasOwn(aliases, aliasName)) throw new CliError('ALIAS_NOT_FOUND', `No command alias '${aliasName}'. Use adb-alias list.`, 3);
     const selected = selectDevices((parsed.values.device ?? []) as string[], Boolean(parsed.values.all), await devices(config), config);
-    const output = await runCommands(selected, command, timeout);
+    const output = aliasName === undefined ? await runCommands(selected, command, timeout)
+      : await runAliasCommands(aliasName, aliases[aliasName]!, selected, command, timeout, config.bindings);
     print(output, json);
-    if (!output.ok) process.exitCode = 1;
+    if (!output.ok) process.exitCode = output.errors.some(e => e.code === 'CANCELLED') ? 130 : 1;
     return;
   }
   if (args[0] === 'status') {

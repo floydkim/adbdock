@@ -1,6 +1,6 @@
 {
   "name": "adbdock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A multi-device ADB CLI with optional Metro connection recovery",
   "repository": {
     "type": "git",

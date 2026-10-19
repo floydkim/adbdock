@@ -298,7 +298,7 @@ For options and more examples:
   'metro bind': `adbdock metro bind — Save and apply a Metro mapping
 
 Usage:
-  adbdock metro bind <device> --port <port> [--device-port <port>]
+  adbdock metro bind <device> --port <port> [--device-port <port>] [--app <package>]
 
 The device may be an alias, ADB serial or ID.
 Remembered offline devices keep the mapping for later repair.
@@ -309,6 +309,10 @@ Options:
     Required: the port where Metro is listening on your Mac.
   --device-port <port>
     Port used inside Android; default 8081.
+  --app <package>
+    Debuggable app to check in adbdock status. Status reads the
+    server address saved in the app and reports whether it uses this
+    mapping. adbdock never changes the app settings.
   --replace
     Explicitly replace an external reverse rule on this device port.
     Otherwise, conflicting rules are preserved and reported.
@@ -316,6 +320,7 @@ Options:
 Examples:
   adbdock metro bind phone --port 8082
   adbdock metro bind phone --port 8082 --device-port 18081
+  adbdock metro bind emulator --port 8082 --app com.example.app
 `,
   'metro unbind': `adbdock metro unbind — Remove a saved Metro mapping
 
@@ -430,7 +435,10 @@ Usage:
   adbdock status [--json]
 
 Reports device availability, reverse rules, host Metro and watcher state.
-App connectivity is unknown; verify app rendering and Fast Refresh separately.
+A conflicting reverse rule shows its current destination.
+Mappings saved with --app also report which address the app uses:
+tunnel, other_port, direct (bypasses the tunnel) or unknown.
+Verify app rendering and Fast Refresh separately.
 
 Examples:
   adbdock status

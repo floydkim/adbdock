@@ -2,7 +2,7 @@
 import { CliError, print, result } from './output.js';
 import { parseArgs } from 'node:util';
 import { devices, remember, resolveDevice, selectDevices } from './devices.js';
-import { isPort, readConfig, saveConfig, withConfig } from './store.js';
+import { isPackageName, isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
 import { applyBinding, problem, removeBinding, repairBindings } from './link.js';
 import { getCommandAliases, manageCommandAliases } from './command-aliases.js';
@@ -119,11 +119,13 @@ async function main() {
   if (args[0] === 'metro') {
     const command = args[1];
     if (command === 'bind') {
-      const parsed = options(args.slice(2), { port: { type: 'string' }, 'device-port': { type: 'string' }, replace: { type: 'boolean' } });
+      const parsed = options(args.slice(2), { port: { type: 'string' }, 'device-port': { type: 'string' }, replace: { type: 'boolean' }, app: { type: 'string' } });
       const target = parsed.positionals[0];
-      if (!target || parsed.positionals.length !== 1 || !parsed.values.port) throw new CliError('INVALID_ARGUMENT', 'Usage: metro bind <device> --port <port> [--device-port <port>] [--replace]', 2);
+      if (!target || parsed.positionals.length !== 1 || !parsed.values.port) throw new CliError('INVALID_ARGUMENT', 'Usage: metro bind <device> --port <port> [--device-port <port>] [--app <package>] [--replace]', 2);
       const metroPort = port(parsed.values.port);
       const devicePort = port(parsed.values['device-port'] ?? 8081);
+      const app = parsed.values.app;
+      if (app !== undefined && !isPackageName(app)) throw new CliError('INVALID_ARGUMENT', '--app must be an Android package name such as com.example.app.', 2);
       emit(await withConfig(async config => {
         const live = await devices(config);
         const device = resolveDevice(target, live, config);
@@ -131,6 +133,7 @@ async function main() {
         let binding = config.bindings.find(b => b.deviceId === device.id && b.devicePort === devicePort);
         if (binding) binding.metroPort = metroPort;
         else { binding = { deviceId: device.id, devicePort, metroPort }; config.bindings.push(binding); }
+        if (app !== undefined) binding.app = app;
         await saveConfig(config);
         try {
           await applyBinding(binding, 'transports' in device ? device : undefined, Boolean(parsed.values.replace));

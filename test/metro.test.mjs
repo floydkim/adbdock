@@ -89,6 +89,45 @@ test('status separates Metro reachability from app connectivity', async t => {
   assert.equal(data.find(d => d.serial === 'wifi1').metro, 'not_configured');
 });
 
+test('status reports which Metro address a bound app actually uses', async t => {
+  const app = await setup(t, [
+    { serial: 'usb1', apps: { 'com.example.app': { host: 'localhost:8081' } } },
+    { serial: 'usb2', apps: { 'com.example.app': { host: 'localhost:8090' } } },
+    { serial: 'emulator-5554', apps: { 'com.example.app': {} } },
+    { serial: 'usb3' },
+  ]);
+  for (const serial of ['usb1', 'usb2', 'emulator-5554', 'usb3']) {
+    assert.equal((await app.run('metro', 'bind', serial, '--port', '8090', '--app', 'com.example.app', '--json')).code, 0);
+  }
+  const data = JSON.parse((await app.run('status', '--json')).stdout).data;
+  const appOf = serial => data.find(d => d.serial === serial).metro[0].app;
+  assert.deepEqual(appOf('usb1'), { package: 'com.example.app', host: 'localhost:8081', source: 'saved', route: 'tunnel' });
+  assert.equal(appOf('usb2').route, 'other_port');
+  assert.deepEqual(appOf('emulator-5554'), { package: 'com.example.app', host: '10.0.2.2:8081', source: 'default', route: 'direct' });
+  assert.equal(appOf('usb3').route, 'unknown');
+  assert.match(appOf('usb3').error, /not debuggable/);
+});
+
+test('status shows where a conflicting tunnel currently points', async t => {
+  const app = await setup(t, [{ serial: 'usb1' }]);
+  await app.run('metro', 'bind', 'usb1', '--port', '8090');
+  const state = await app.state();
+  state.devices[0].reverse['tcp:8081'] = 'tcp:8081';
+  await app.setState(state);
+  const bound = JSON.parse((await app.run('status', '--json')).stdout).data.find(d => d.serial === 'usb1');
+  assert.equal(bound.metro[0].reverse, 'conflict');
+  assert.equal(bound.metro[0].current, 'tcp:8081');
+  assert.equal(bound.metro[0].app, undefined);
+});
+
+test('an invalid app package fails before any reverse command', async t => {
+  const app = await setup(t);
+  for (const name of ['app', 'com.example.', '1com.example', 'com.example.app; rm']) {
+    assert.equal((await app.run('metro', 'bind', 'usb1', '--port', '8090', '--app', name, '--json')).code, 2, name);
+  }
+  assert.equal((await app.calls()).filter(c => c.includes('reverse')).length, 0);
+});
+
 test('invalid ports fail before any reverse command', async t => {
   const app = await setup(t);
   for (const port of ['0', '65536', 'abc', '8081.5']) {

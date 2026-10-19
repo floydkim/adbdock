@@ -1,16 +1,13 @@
 # Release guide
 
-The first local bootstrap release is `adbdock@0.0.1`; the first planned OIDC
-release is `0.1.0`. The package is public under MIT.
-The `0.0.1` bootstrap was published from the reviewed tarball; registry integrity
-and `npm exec` help from outside the checkout were verified. Trusted publishing
-is configured for `floydkim/adbdock`, workflow `release.yml`, with direct publishing
-allowed. The first real OIDC publication remains to be verified with `0.1.0`. It is intended
-for macOS with Node.js 22+ and separately installed Android Platform-Tools.
-`.github/workflows/release.yml` publishes stable GitHub Releases through npm
-Trusted Publishing (OIDC). Preparing or pushing the workflow does not publish a
-package. Publication requires both the npm trusted publisher setup below and a
-GitHub Release event.
+The public MIT package targets macOS with Node.js 22+ and separately installed
+Android Platform-Tools. `0.0.1` was bootstrapped locally; `0.1.0` and `0.1.1` were
+published and verified through npm Trusted Publishing (OIDC).
+
+Release Please manages the CLI version and CHANGELOG in a Release PR. **Merging
+that PR approves publication**: the workflow creates its tag and GitHub Release,
+validates the release commit and publishes to npm. There is no separate environment
+approval. The Git-based skills plugin keeps its independent version workflow.
 
 ## Validate the release candidate
 
@@ -106,53 +103,84 @@ configuration and recreate it when ready. No `NPM_TOKEN` secret is needed.
 After confirming OIDC works, npm's "Require two-factor authentication and disallow
 tokens" setting can disable traditional publish tokens without disabling OIDC.
 
-## Publish from GitHub
+## Release PR workflow
 
-For the initial rollout, publish `0.0.1` locally, configure the trusted publisher,
-then prepare the first OIDC release:
+`.github/workflows/release.yml` runs Release Please on pushes to `main`.
+The root Node package uses `release-please-config.json` and
+`.release-please-manifest.json`; the initial baseline is the published `0.1.1`.
+The existing `v0.1.1` release/tag is used to find unreleased commits, so introducing
+this setup does not release the old changes again.
 
-```sh
-npm version 0.1.0 --no-git-tag-version
-```
-
-Review, commit and push it, then publish GitHub Release `v0.1.0`. Do not reuse
-`v0.0.1` for the first OIDC run; npm cannot publish the same name/version twice.
-
-For later stable CLI releases:
-
-1. Update the CLI version with `npm version patch --no-git-tag-version` (or choose
-   a minor/major version). This updates package.json and package-lock.json, not
-   the independent plugin version.
-2. Run the checks, review and commit the changes, then push to `main`.
-3. Create and publish a GitHub Release targeting that commit, with a tag exactly
-   matching `v<package-version>`, such as `v0.1.0`. A draft or prerelease does not publish.
-
-The release workflow checks out the release commit and uses macOS/Node.js 24 so
-macOS-specific tests run. It disables npm caching, checks the tag/version match,
-runs `npm ci`, all checks and the package installation checks, then packs and
-publishes the tarball. Only the publish job has `id-token: write`; no long-lived
-npm credential is configured. npm generates provenance automatically for this
-public package/repository when publishing with OIDC.
-
-Publishing a GitHub Release is the deployment trigger, not merely pushing `main`
-or a tag. `plugin-v...` releases are ignored. Editing an existing Release does not
-retry the workflow; use Actions → Re-run jobs if the package was not published.
-A published name/version cannot be reused. If npm accepted the package before a
-workflow failure, check the registry before retrying.
-
-Verify the published version:
+1. Merge ordinary feature/fix PRs using a Conventional Commit squash title.
+2. Release Please opens or updates one Release PR containing package.json,
+   package-lock.json, CHANGELOG.md and its version manifest.
+3. Review the proposed version, release notes and CI on the PR's latest commit.
+4. Merge the Release PR when ready to publish. Leave it open to collect more changes.
+5. The next `Release` run creates `v<version>` and the GitHub Release. Its `publish`
+   job checks out the action's exact release SHA, verifies the tag/version match,
+   runs checks and package installation tests on macOS/Node.js 24, and publishes
+   the packed tarball through OIDC.
+6. Verify the workflow, npm version, provenance and installed CLI:
 
 ```sh
-npm view adbdock version dist.integrity --json
+npm view adbdock version dist.integrity dist.attestations --json --prefer-online
 npx adbdock@latest --help
 ```
 
-A dry-run does not validate OIDC authentication. The first real GitHub publication
-is needed to confirm the npm trust configuration. Until then, no OIDC publication
-should be reported as verified.
+No local `npm version`, manual version commit, tag push or Release creation is
+needed in the normal flow. The workflow never auto-merges a Release PR.
 
-Official references: [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/),
-[initial package requirement](https://docs.npmjs.com/cli/v11/commands/npm-trust/#prerequisites).
+### Version selection
+
+- `fix:` produces a patch release; `feat:` produces a minor release.
+- `!` or `BREAKING CHANGE:` denotes an incompatible change. Before 1.0, it bumps
+  the minor version; after 1.0 it bumps the major version.
+- Ordinary `docs:`, `test:`, `ci:` and `chore:` changes do not request a release on
+  their own; they can be included in a later release.
+- Plugin-only changes under `plugins/`, `.agents/` and `.claude-plugin/` are excluded
+  from CLI version planning. The existing plugin workflow still handles them.
+- To override the calculated next version, add a `Release-As: 0.2.0` footer to a
+  normal code-change commit (replace with the intended version). Empty and plugin-only
+  commits are excluded by the path filter. Review the updated Release PR before
+  merging it. Do not manually change only package.json.
+
+### GitHub permissions and bot CI
+
+Enable **Settings → Actions → General → Allow GitHub Actions to create and approve
+pull requests**. This permits bot PR creation; the workflow does not approve or
+merge PRs. No PAT, GitHub App credential or NPM_TOKEN is required.
+
+Release management has contents/issues/pull-requests write permissions. Its
+`actions: write` permission explicitly dispatches `ci.yml` on each created or
+updated Release PR branch. Check the CI run's commit matches the current PR head.
+Bot-created PR events can be suppressed or require approval; the dispatched run
+avoids relying on that event. If GitHub also shows an approval banner for the
+PR-triggered run, approve that run in the PR UI.
+
+The publish job has only contents:read and id-token:write. npm's trusted publisher
+still points to `floydkim/adbdock`, **release.yml**, with no environment configured.
+The filename is unchanged, so the npm trusted publisher needs no replacement.
+Release Please's bot-created Release does not trigger another release workflow;
+the action's `release_created`, `sha` and `tag_name` outputs directly select the
+publish job in the same run.
+
+### Manual operation and recovery
+
+- Use Actions → **Release** → **Run workflow** on `main` to reconcile an existing
+  Release PR or a merged Release PR if a push run did not complete.
+- If npm publication fails after a Release was created, check npm first, then
+  **re-run failed jobs** on that run. Re-running the entire workflow can cause
+  Release Please to see the existing Release and skip publication.
+- If npm accepted the package, wait for registry processing; do not publish it
+  again. An existing published name/version cannot be replaced.
+- A manually published stable GitHub Release still triggers the existing fallback
+  publish path. Its tag must match package.json. Drafts and prereleases do not publish.
+  Avoid creating it while the automatic path for that version is in progress.
+
+Official references: [Release Please Action](https://github.com/googleapis/release-please-action),
+[Conventional Commits and overrides](https://github.com/googleapis/release-please),
+[GitHub workflow triggering](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow),
+[npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/).
 
 ## Git-based skills plugin
 

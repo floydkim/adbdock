@@ -175,28 +175,34 @@ a conflict. Use `--replace` only when you intend to overwrite it. A matching ext
 rule is reused and is not removed by a later `unbind`. For a conflict, `status`
 also shows the rule's current destination as `current`.
 
-### Check whether the app uses the tunnel
+### Inspect a possible app connection route
 
-A healthy reverse rule does not help if the app connects elsewhere. For example,
-an emulator app with no address saved from the dev menu connects to `10.0.2.2:8081`,
-which reaches your Mac's port 8081 directly. Save the app package with `--app` and
-`status` reads the development server address saved in the app to report the real route.
+A healthy reverse rule does not prove the app uses it. Save the debug app package
+with `--app` so `status` can read its saved development server address:
 
 ```sh
 adbdock metro bind emulator --port 8082 --app com.example.app
 adbdock status --json
 ```
 
-| `route` | Meaning |
-|---|---|
-| `tunnel` | The app connects to `localhost:<device-port>` and uses this tunnel |
-| `other_port` | The app connects to another port on `localhost` |
-| `direct` | The app connects to `10.0.2.2` or a LAN IP and bypasses the tunnel |
-| `unknown` | The app settings could not be read (not a debug build or not installed) |
+`metro[].app.route` stays `unknown`. React Native can override the server address
+in memory; in RN 0.84, changing the bundle location in the dev menu does this
+without updating the preferences file. Saved settings cannot prove the active route.
 
-`host` is the address the app uses. When `source` is `default`, no address is saved
-and adbdock assumes the React Native default with port 8081. adbdock only reads the
-app settings and never changes them.
+When settings can be read, `metro[].app.estimate` contains a candidate address and route:
+
+| `estimate.route` | Meaning if the app uses this address |
+|---|---|
+| `tunnel` | The address uses this mapping's device-side port on localhost |
+| `other_port` | The address uses another port on localhost |
+| `direct` | The address bypasses reverse, such as `10.0.2.2` or a LAN IP |
+
+`estimate.host` is the candidate address. `estimate.source` is `saved` for an address
+from preferences, or `default` for a conventional fallback: `10.0.2.2:8081` on an
+emulator, `localhost:8081` on a phone. Build settings or runtime overrides may differ.
+If settings cannot be read (for example a missing or non-debuggable app), `error`
+is returned without an estimate. Verify the current address in the app's dev menu
+and test a Reload or Fast Refresh. adbdock never changes app settings or reloads the app.
 
 ### Watch and repair
 

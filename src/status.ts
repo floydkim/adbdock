@@ -22,9 +22,8 @@ function metroStatus(port: number): Promise<string> {
   });
 }
 
-// React Native reads a host saved from the dev menu first. Without one, emulators use 10.0.2.2,
-// which reaches the Mac directly and skips adb reverse, and devices use localhost.
-// The default port is the build's dev server port; 8081 unless the app changed it.
+// React Native can override the host in memory (for example from the RN 0.84 dev menu).
+// Preferences and conventional defaults provide an estimate, not the running app's route.
 async function appMetro(serial: string, kind: string, app: string, devicePort: number) {
   const output = await adb(['-s', serial, 'shell', 'run-as', app, 'cat', `shared_prefs/${app}_preferences.xml`]);
   const text = `${output.stdout}\n${output.stderr}`;
@@ -36,7 +35,7 @@ async function appMetro(serial: string, kind: string, app: string, devicePort: n
   const [name, portText] = host.split(':');
   const local = name === 'localhost' || name === '127.0.0.1';
   const route = !local ? 'direct' : Number(portText) === devicePort ? 'tunnel' : 'other_port';
-  return { package: app, host, source: saved ? 'saved' : 'default', route };
+  return { package: app, route: 'unknown', estimate: { host, source: saved ? 'saved' : 'default', route } };
 }
 
 export async function status() {

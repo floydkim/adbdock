@@ -310,9 +310,9 @@ Options:
   --device-port <port>
     Port used inside Android; default 8081.
   --app <package>
-    Debuggable app to check in adbdock status. Status reads the
-    server address saved in the app and reports whether it uses this
-    mapping. adbdock never changes the app settings.
+    Debuggable app to inspect in adbdock status. Saved addresses or
+    defaults provide an estimate; the running app route stays unknown.
+    adbdock never changes the app settings.
   --replace
     Explicitly replace an external reverse rule on this device port.
     Otherwise, conflicting rules are preserved and reported.
@@ -436,8 +436,9 @@ Usage:
 
 Reports device availability, reverse rules, host Metro and watcher state.
 A conflicting reverse rule shows its current destination.
-Mappings saved with --app also report which address the app uses:
-tunnel, other_port, direct (bypasses the tunnel) or unknown.
+Mappings saved with --app include an address estimate from saved settings
+or defaults. app.route stays unknown: runtime overrides cannot be read.
+app.estimate.route describes the candidate: tunnel, other_port or direct.
 Verify app rendering and Fast Refresh separately.
 
 Examples:

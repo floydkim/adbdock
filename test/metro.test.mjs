@@ -89,7 +89,7 @@ test('status separates Metro reachability from app connectivity', async t => {
   assert.equal(data.find(d => d.serial === 'wifi1').metro, 'not_configured');
 });
 
-test('status reports which Metro address a bound app actually uses', async t => {
+test('status keeps the runtime route unknown when only saved or default addresses are available', async t => {
   const app = await setup(t, [
     { serial: 'usb1', apps: { 'com.example.app': { host: 'localhost:8081' } } },
     { serial: 'usb2', apps: { 'com.example.app': { host: 'localhost:8090' } } },
@@ -101,11 +101,13 @@ test('status reports which Metro address a bound app actually uses', async t => 
   }
   const data = JSON.parse((await app.run('status', '--json')).stdout).data;
   const appOf = serial => data.find(d => d.serial === serial).metro[0].app;
-  assert.deepEqual(appOf('usb1'), { package: 'com.example.app', host: 'localhost:8081', source: 'saved', route: 'tunnel' });
-  assert.equal(appOf('usb2').route, 'other_port');
-  assert.deepEqual(appOf('emulator-5554'), { package: 'com.example.app', host: '10.0.2.2:8081', source: 'default', route: 'direct' });
+  assert.deepEqual(appOf('usb1'), { package: 'com.example.app', route: 'unknown', estimate: { host: 'localhost:8081', source: 'saved', route: 'tunnel' } });
+  assert.equal(appOf('usb2').route, 'unknown');
+  assert.deepEqual(appOf('usb2').estimate, { host: 'localhost:8090', source: 'saved', route: 'other_port' });
+  assert.deepEqual(appOf('emulator-5554'), { package: 'com.example.app', route: 'unknown', estimate: { host: '10.0.2.2:8081', source: 'default', route: 'direct' } });
   assert.equal(appOf('usb3').route, 'unknown');
   assert.match(appOf('usb3').error, /not debuggable/);
+  assert.equal(appOf('usb3').estimate, undefined);
 });
 
 test('status shows where a conflicting tunnel currently points', async t => {

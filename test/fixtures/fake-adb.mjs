@@ -47,6 +47,13 @@ if (args[0] === 'devices') {
   }
   else if (command.join(' ') === 'shell getprop persist.adb.wifi.guid') console.log(device.guid ?? '');
   else if (command.join(' ') === 'emu avd name') console.log(`${device.avd ?? 'Pixel_API_35'}\nOK`);
+  else if (command[0] === 'shell' && command[1] === 'run-as') {
+    // apps: { [package]: { host?: string } }; a missing package behaves like a non-debuggable app.
+    const app = device.apps?.[command[2]];
+    if (!app) { console.error(`run-as: package not debuggable: ${command[2]}`); process.exit(1); }
+    if (app.host === undefined) { console.error(`cat: ${command[4]}: No such file or directory`); process.exit(1); }
+    console.log(`<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n    <string name="debug_http_host">${app.host}</string>\n</map>`);
+  }
   else if (command.join(' ') === 'shell dumpsys SurfaceFlinger --display-id') {
     for (const id of device.displays ?? []) console.log(`Display ${id} (HWC display 0): port=130`);
   } else if (command.slice(0, 3).join(' ') === 'exec-out screencap -p') {

@@ -172,7 +172,31 @@ watcher for automatic recovery. Mappings persist even while a remembered device 
 
 An external reverse rule with a different destination is preserved and reported as
 a conflict. Use `--replace` only when you intend to overwrite it. A matching external
-rule is reused and is not removed by a later `unbind`.
+rule is reused and is not removed by a later `unbind`. For a conflict, `status`
+also shows the rule's current destination as `current`.
+
+### Check whether the app uses the tunnel
+
+A healthy reverse rule does not help if the app connects elsewhere. For example,
+an emulator app with no address saved from the dev menu connects to `10.0.2.2:8081`,
+which reaches your Mac's port 8081 directly. Save the app package with `--app` and
+`status` reads the development server address saved in the app to report the real route.
+
+```sh
+adbdock metro bind emulator --port 8082 --app com.example.app
+adbdock status --json
+```
+
+| `route` | Meaning |
+|---|---|
+| `tunnel` | The app connects to `localhost:<device-port>` and uses this tunnel |
+| `other_port` | The app connects to another port on `localhost` |
+| `direct` | The app connects to `10.0.2.2` or a LAN IP and bypasses the tunnel |
+| `unknown` | The app settings could not be read (not a debug build or not installed) |
+
+`host` is the address the app uses. When `source` is `default`, no address is saved
+and adbdock assumes the React Native default with port 8081. adbdock only reads the
+app settings and never changes them.
 
 ### Watch and repair
 
@@ -267,7 +291,7 @@ A successful status query can still report unhealthy devices.
 ## Limits
 
 - **Tunnel recovery is not Fast Refresh recovery.** In RN 0.84.1 testing, a disconnected HMR socket needed an explicit app Reload. adbdock does not silently reload apps or reset state.
-- `status` checks ADB, reverse rules and the host Metro separately. App connectivity remains `unknown`; verify rendering and Fast Refresh in the app.
+- `status` checks ADB, reverse rules and the host Metro separately. Apps saved with `--app` also report their connection address; still verify rendering and Fast Refresh in the app.
 - Multiple running instances of the same AVD have no unique persistent AVD identity. Use distinct AVDs for mappings that should survive emulator restarts.
 - Short functional tests covered real devices and emulators, shared/separate Metros, USB/Wi-Fi transitions and recovery. One short Mac sleep/wake test confirmed process survival, device-to-Metro HTTP communication and watcher repair after waking. Long-running reliability remains unverified.
 

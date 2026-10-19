@@ -18,6 +18,7 @@ export interface Binding {
   devicePort: number;
   metroPort: number;
   managedPort?: number;
+  app?: string;
 }
 
 export interface Config {
@@ -29,6 +30,10 @@ export interface Config {
 
 export const home = path.resolve(process.env.ADBDOCK_HOME ?? path.join(homedir(), 'Library', 'Application Support', 'adbdock'));
 const configPath = path.join(home, 'config.json');
+
+export function isPackageName(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(value);
+}
 
 export function isPort(value: unknown): value is number {
   return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 65535;
@@ -45,7 +50,7 @@ export async function readConfig(): Promise<Config> {
         && (d.alias === undefined || typeof d.alias === 'string') && Array.isArray(d.serials) && d.serials.every(s => typeof s === 'string')
         && (d.wirelessServices === undefined || (Array.isArray(d.wirelessServices) && d.wirelessServices.every(s => typeof s === 'string'))))
       || !value.bindings.every((b: Binding) => b && typeof b.deviceId === 'string' && isPort(b.devicePort) && isPort(b.metroPort)
-        && (b.managedPort === undefined || isPort(b.managedPort)))) {
+        && (b.managedPort === undefined || isPort(b.managedPort)) && (b.app === undefined || isPackageName(b.app)))) {
       throw new Error('Unsupported config structure');
     }
     if (new Set(value.devices.map((d: SavedDevice) => d.id)).size !== value.devices.length

@@ -169,7 +169,31 @@ adbdock metro bind phone --port 8082 --device-port 18081
 
 다른 도구가 만든 reverse 규칙의 목적지가 다르면 보존하고 충돌로 표시합니다.
 의도적으로 덮어쓸 때만 `--replace`를 사용합니다. 목적지가 같은 외부 규칙은 그대로
-사용하며, 나중에 `unbind`해도 제거하지 않습니다.
+사용하며, 나중에 `unbind`해도 제거하지 않습니다. `status`는 충돌한 규칙이 지금 가리키는
+목적지를 `current`로 함께 보여 줍니다.
+
+### 앱이 터널을 쓰는지 확인하기
+
+reverse 규칙이 정상이어도 앱이 다른 주소로 접속하면 터널을 거치지 않습니다.
+예를 들어 개발 메뉴에서 주소를 저장한 적 없는 에뮬레이터 앱은 `10.0.2.2:8081`,
+곧 Mac의 8081로 바로 접속합니다. `--app`으로 앱 패키지를 함께 저장하면
+`status`가 앱에 저장된 개발 서버 주소를 읽어 실제 경로를 알려 줍니다.
+
+```sh
+adbdock metro bind emulator --port 8082 --app com.example.app
+adbdock status --json
+```
+
+| `route` | 뜻 |
+|---|---|
+| `tunnel` | 앱이 `localhost:<기기 포트>`로 접속해 이 터널을 씁니다 |
+| `other_port` | 앱이 `localhost`의 다른 포트로 접속합니다 |
+| `direct` | 앱이 `10.0.2.2`나 LAN IP로 바로 접속해 터널을 거치지 않습니다 |
+| `unknown` | 앱 설정을 읽지 못했습니다(디버그 빌드가 아니거나 설치되지 않음) |
+
+`host`는 앱이 쓰는 주소이고, `source`가 `default`이면 저장된 주소가 없어
+React Native 기본값을 추정한 것입니다. 기본 포트는 8081로 가정합니다.
+adbdock은 앱 설정을 읽기만 하고 바꾸지 않습니다.
 
 ### 감시와 복구
 
@@ -260,7 +284,7 @@ watcher 제어 오류 4입니다. status 명령이 성공해도 개별 기기의
 ## 제한 사항
 
 - **터널 복구와 Fast Refresh 복구는 별개입니다.** RN 0.84.1 검증에서 끊어진 HMR 소켓은 명시적 앱 Reload가 필요했습니다. adbdock은 앱을 임의로 Reload하거나 상태를 초기화하지 않습니다.
-- `status`는 ADB·reverse 규칙·호스트 Metro를 별도로 확인합니다. 앱 연결은 `unknown`으로 표시하므로 렌더링과 Fast Refresh는 앱에서 확인해야 합니다.
+- `status`는 ADB·reverse 규칙·호스트 Metro를 별도로 확인합니다. `--app`으로 저장한 앱은 접속 주소까지 확인하지만, 실제 렌더링과 Fast Refresh는 여전히 앱에서 확인해야 합니다.
 - 같은 AVD를 여러 개 실행하면 각각을 영구 식별할 고유 AVD 정보가 없습니다. 재시작 후에도 매핑을 유지하려면 서로 다른 AVD를 사용합니다.
 - 실기기·에뮬레이터의 Metro 공유·분리, USB/Wi-Fi 전환과 복구를 짧게 검증했습니다. 짧은 Mac 잠자기·복귀 1회에서는 프로세스 생존, 기기에서 Metro까지의 HTTP 통신과 복귀 후 watcher 복구를 확인했습니다. 장시간 안정성은 아직 검증하지 않았습니다.
 

@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { mapLimit } from './adb.js';
+import { adb, mapLimit } from './adb.js';
 import { devices } from './devices.js';
 import { reversePorts } from './link.js';
 import { readConfig } from './store.js';
@@ -22,6 +22,23 @@ function metroStatus(port: number): Promise<string> {
   });
 }
 
+// React Native reads a host saved from the dev menu first. Without one, emulators use 10.0.2.2,
+// which reaches the Mac directly and skips adb reverse, and devices use localhost.
+// The default port is the build's dev server port; 8081 unless the app changed it.
+async function appMetro(serial: string, kind: string, app: string, devicePort: number) {
+  const output = await adb(['-s', serial, 'shell', 'run-as', app, 'cat', `shared_prefs/${app}_preferences.xml`]);
+  const text = `${output.stdout}\n${output.stderr}`;
+  if (output.exitCode !== 0 && !/No such file/.test(text)) {
+    return { package: app, route: 'unknown', error: output.stderr.trim() || output.stdout.trim() || 'run-as failed' };
+  }
+  const saved = /<string name="debug_http_host">([^<]*)<\/string>/.exec(output.stdout)?.[1]?.trim();
+  const host = saved || (kind === 'emulator' ? '10.0.2.2:8081' : 'localhost:8081');
+  const [name, portText] = host.split(':');
+  const local = name === 'localhost' || name === '127.0.0.1';
+  const route = !local ? 'direct' : Number(portText) === devicePort ? 'tunnel' : 'other_port';
+  return { package: app, host, source: saved ? 'saved' : 'default', route };
+}
+
 export async function status() {
   const config = await readConfig();
   const live = await devices(config);
@@ -39,9 +56,13 @@ export async function status() {
     }
     return { id: d.id, alias: d.alias, serial: 'serial' in d ? d.serial : null,
       state: 'state' in d ? d.state : 'disconnected', kind: d.kind,
-      metro: bindings.length ? await Promise.all(bindings.map(async b => ({ devicePort: b.devicePort,
-        metroPort: b.metroPort, reverse: !online ? 'unavailable' : reverseError ? 'error' : tunnels.get(b.devicePort) === `tcp:${b.metroPort}` ? 'ready' : tunnels.has(b.devicePort) ? 'conflict' : 'missing',
-        server: await servers.get(b.metroPort), ...(reverseError ? { error: reverseError } : {}) }))) : 'not_configured',
+      metro: bindings.length ? await Promise.all(bindings.map(async b => {
+        const reverse = !online ? 'unavailable' : reverseError ? 'error' : tunnels.get(b.devicePort) === `tcp:${b.metroPort}` ? 'ready' : tunnels.has(b.devicePort) ? 'conflict' : 'missing';
+        return { devicePort: b.devicePort, metroPort: b.metroPort, reverse,
+          ...(reverse === 'conflict' ? { current: tunnels.get(b.devicePort) } : {}),
+          server: await servers.get(b.metroPort), ...(reverseError ? { error: reverseError } : {}),
+          ...(online && b.app ? { app: await appMetro(d.serial, d.kind, b.app, b.devicePort) } : {}) };
+      })) : 'not_configured',
       app: 'unknown' };
   });
 }

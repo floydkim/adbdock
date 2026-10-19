@@ -1,6 +1,6 @@
 {
   "name": "adbdock",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Use adbdock for Android device selection, multi-device checks and optional Metro recovery.",
   "license": "MIT",
   "author": {

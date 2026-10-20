@@ -1,6 +1,10 @@
-# Validation record — 2026-10-17
+# Validation record
 
-Environment: macOS arm64, Node.js 22.22.0, npm 10.9.4,
+Latest status update: 2026-10-21 (Asia/Seoul). The checklist below reflects the
+completed follow-ups. Individual entries describe results and limitations at the
+time of each run; older pending statements are not the current checklist.
+
+Initial validation environment (2026-10-17): macOS arm64, Node.js 22.22.0, npm 10.9.4,
 Android platform-tools 36.0.0 (ADB 1.0.41).
 
 ## Automated boundary tests
@@ -38,19 +42,31 @@ server implementing the Metro `/status` response:
 
 This was a test HTTP server, not an RN app or actual Metro process. It validates
 the ADB tunnel and recovery path but does not establish Fast Refresh behavior.
-No USB/Wi-Fi physical devices or discovered mDNS services were available.
+At this initial stage, no USB/Wi-Fi physical devices or discovered mDNS services
+were available.
 
-The following remain to be checked with hardware and running RN projects:
+### Current hardware validation status — 2026-10-21
 
+- [x] Two separate physical phones + one emulator connected simultaneously (user-reported)
 - [ ] USB phone + Wi-Fi phone + two emulators connected simultaneously
 - [x] Multiple devices receiving updates from one Metro
 - [x] Different projects/Metro ports assigned to different devices
-- [ ] USB unplug/replug with recovery and no impact on other devices
-- [ ] Wireless reconnect after IP/port change and after wireless debugging toggle
+- [x] USB unplug/replug with recovery and no impact on the tested emulator (see USB/Bonjour follow-ups)
+- [x] Wireless port change and return after re-enabling wireless debugging, without re-pairing
+- [x] adbdock-initiated wireless reconnect, with ADB auto-connect disabled on an isolated server
+- [ ] Wireless reconnect after an actual IP-address change
 - [x] Short Mac sleep/wake: process survival, Metro HTTP and post-wake repair (see below)
 - [x] Metro stop/restart, preserving the reverse rules (explicit RN Reload required)
 - [x] USB/Wi-Fi dual transport on the same real phone
 - [x] Correct project visible and actual Fast Refresh on every tested device
+- [x] Watcher process survival across days of field use and recovery work after network return
+- [ ] End-to-end long-sleep trial with an observed disconnect, adbdock-attributed reconnect and RN UI/Fast Refresh check
+
+The field-idle and isolated-server tests below verify different parts of recovery.
+They do not establish a full long-sleep/RN trial or reliability on every network.
+The user confirmed a separate three-device setup with two physical phones and
+one emulator. Transport details and command/UI evidence were not supplied for
+that run. The four-device matrix with two emulators has not been confirmed.
 
 ## Packaging
 
@@ -138,9 +154,9 @@ wireless reconnect depends on advertised discovery and cannot be guaranteed in
 that condition. This is separate from the prior successful discovered-service
 reconnect test. No implementation changes were made for these scenarios.
 
-Still requires human/device preparation: physical USB connection and unplug/replug,
-USB/Wi-Fi dual transport, wireless debugging toggle with a recovery path, actual
-wireless IP/port change, Mac sleep/wake and long-running stability assessment.
+At this phase, physical USB connection and unplug/replug, USB/Wi-Fi dual
+transport, wireless debugging toggle, IP/port change and sleep/idle scenarios were
+pending. Subsequent results are reflected in the current checklist above.
 
 
 ## Follow-up: USB / wireless dual transport and physical unplug
@@ -194,8 +210,9 @@ Fast Refresh. Captured updated screenshots. USB replug/selection and tunnel
 availability passed; automatic HMR recovery across the transition did not.
 
 These USB tests changed only scratch app revisions and validation documentation;
-production code was unchanged. Reliable low-latency wireless discovery, a real
-IP-address change, actual Mac sleep/wake and long-running stability remain open.
+production code was unchanged. At this phase, reliable low-latency wireless
+discovery, an IP-address change and sleep/idle scenarios were still open; see the
+current checklist and later follow-ups for subsequent results.
 
 
 ## Follow-up: macOS Bonjour fallback
@@ -272,8 +289,8 @@ that failed run.
 `docs/testing.md` contains a reusable human/LLM runbook. It distinguishes these
 HTTP tunnel tests from real RN rendering and state-preserving Fast Refresh,
 provides RN source/port/debug-host setup and evidence requirements, and separates
-human USB/sleep actions from automated checks. Sleep remains deferred and
-long-running stability will be evaluated during real work. This automation run
+human USB/sleep actions from automated checks. Sleep was deferred at that point;
+short sleep and later field-idle observations are recorded separately below. This automation run
 did not reinstall the RN app or repeat every RN UI scenario.
 
 
@@ -333,7 +350,8 @@ or tunnel repair, so sleep-triggered reconnect behavior was not exercised.
 Evidence: scratch `rn084-validation/sleep-before.json`, `sleep-after.json`,
 `sleep-power.log` and `sleep-post-wake-repair.json`. RN rendering/Fast Refresh
 was not rechecked in this run. Existing watcher, Metros and both mappings were
-left running. Long-running reliability remains open.
+left running. This run did not establish long-running reliability. Later
+field-idle observations and controlled reconnect results are recorded below.
 
 
 ## Guided wireless pairing — 2026-10-17
@@ -522,3 +540,73 @@ for this test-only expansion. Existing real-device/watcher configurations stayed
 outside the test fixtures. Evidence: expanded-regression-checks.log,
 expanded-regression-package-checks.log, regression-boundaries-checks.log and
 regression-recovery-checks.log in scratch rn084-validation.
+
+
+## Field idle and controlled wireless recovery — 2026-10-21
+
+### Field observations and phone Wi-Fi toggle
+
+The user reported about one hour of Mac sleep without an observed connection
+loss. This is a connection-maintenance observation, not a reconnect test.
+
+After the Mac was taken to work and returned, the original watcher PID 2731
+(started October 17) was still alive in the scratch RN validation config. Its
+retained logs show WIRELESS_NOT_DISCOVERED from October 20 11:17 until the first
+recorded REVERSE_CONFLICT at 22:44 (Asia/Seoul). The phone was online again, but
+its existing 8081 → 8081 rule conflicted with the saved 8081 → 8082 mapping.
+Neither Metro port was listening at the initial inspection. No connect, repair
+or rule replacement was performed for that inspection. The logs do not identify
+whether adbdock or ADB's own auto-connect restored the connection, and do not
+prove that the Mac was continuously asleep during the missing-device interval.
+
+All six existing real-device smoke scenarios subsequently passed on the Flip4,
+including temporary tunnel repair, Android HTTP, server restart and preservation
+of external conflicts; cleanup.ok was true.
+
+The user then switched phone Wi-Fi off/on. ADB offline was observed. Wi-Fi had
+returned but the user found wireless debugging disabled, so neither ADB mDNS nor
+Bonjour exposed the remembered TLS service. adbdock reported
+WIRELESS_NOT_DISCOVERED; it cannot reconnect while the phone service is disabled.
+After the user re-enabled wireless debugging without re-pairing, the phone
+returned on port 33869 (previously 37895). The original watcher resumed and logged
+the saved 8081 → 8082 mapping ready. A temporary HTTP server on 8082 returned its
+unique marker to an Android request through device port 8081.
+
+The first instrumented observer stopped on a devices-query error and recorded
+ok=false; its failure cause was not established and this run is not counted as a
+complete pass. Its temporary watcher/rule were cleaned up and the original
+watcher resumed. The subsequent tunnel/HTTP check passed, but no watcher-issued
+connect was captured in that trial. RN rendering and Fast Refresh were not tested.
+
+### Reconnect attributed to adbdock
+
+Started a separate ADB server on port 64531 with ADB_MDNS_AUTO_CONNECT=0. The
+normal server on 5037 and its existing phone connection remained in service.
+The real remembered TLS service was discoverable, but the isolated server had no
+phone transport in two observations five seconds apart before watcher startup.
+
+A separate adbdock config contained the saved hardware identity/TLS service and
+a temporary device 57062 → host 64542 mapping. The ADB recording wrapper forwarded
+real commands to the isolated server; it did not fabricate discovery or device
+responses. Only the test watcher could issue connect through this wrapper.
+
+- At 00:36:58.661 (Asia/Seoul), the watcher issued
+  `adb -P 64531 connect 192.168.219.106:33869`.
+- At 00:36:58.778, it returned exit code 0 and
+  `connected to 192.168.219.106:33869` (not `already connected`).
+- The watcher applied the temporary reverse rule. Android HTTP through it returned
+  the expected unique server marker. The report recorded ok=true.
+- Cleanup stopped the test watcher, removed its rule, stopped only the isolated
+  ADB server and closed the HTTP server. The normal ADB connection and original
+  reverse rules were verified unchanged; no isolated server listener remained.
+
+This establishes adbdock's discovery → connect → identity/mapping → HTTP recovery
+path independently of ADB auto-connect. It starts from a disconnected isolated
+ADB client, not an actual Mac sleep event. It uses an HTTP fixture rather than
+Metro/RN UI, and does not establish a reconnect latency guarantee.
+
+Evidence retained in local scratch `rn084-validation` (not shipped in npm or Git):
+`long-idle-20261020T150828Z/`, `recovery-smoke.json`,
+`wifi-recovery-1792509478605/report.json` and `phone-state.json` within that folder,
+`wifi-recovery-observed-result.json`, and
+`isolated-adb-reconnect-1792510609724/report.json` plus `connect.jsonl` in that folder.

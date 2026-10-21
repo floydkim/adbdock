@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { CliError, print, result } from './output.js';
 import { parseArgs } from 'node:util';
+import { readFileSync } from 'node:fs';
 import { devices, remember, resolveDevice, selectDevices } from './devices.js';
 import { isPackageName, isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
@@ -38,6 +39,13 @@ async function main() {
   const help = helpFor(separator < 0 ? args : args.slice(0, separator));
   if (help !== undefined) {
     print(result(help), json);
+    return;
+  }
+  if (args[0] === '--version' || args[0] === '-v') {
+    const parsed = options(args, { version: { type: 'boolean', short: 'v' } });
+    if (parsed.positionals.length) throw new CliError('INVALID_ARGUMENT', 'Version takes no positional arguments.', 2);
+    const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    print(result(version), json);
     return;
   }
   if (args[0] === 'devices') {

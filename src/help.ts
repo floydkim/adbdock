@@ -36,6 +36,10 @@ Examples:
   adbdock pair --qr
   adbdock watch start --background
 
+Options:
+  -v, --version
+    Show the installed CLI version.
+
 For options and more examples:
   adbdock pair --help
   adbdock metro --help

@@ -42,6 +42,8 @@ try {
   await writeFile(env.FAKE_ADB_STATE, '{"devices":[]}');
   const help = JSON.parse((await exec(executable, ['--help', '--json'], { env, timeout: 20000 })).stdout);
   assert(help.ok && help.data.includes('adbdock pair'));
+  assert.equal((await cli('--version')).data, manifest.version);
+  assert.equal((await exec(executable, ['-v'], { env, timeout: 20000 })).stdout, `${manifest.version}\n`);
   assert((await cli('metro', 'bind', '--help')).data.includes('--device-port'));
   assert.deepEqual((await cli('devices')).data, []);
   assert.deepEqual((await cli('adb-alias', 'list')).data.map(a => a.name), ['menu', 'reverse', 'screenshot']);
@@ -66,7 +68,7 @@ try {
   assert.equal((dryRun[manifest.name] ?? dryRun).name, manifest.name);
   controller.signal.throwIfAborted();
   console.log(JSON.stringify({ ok: true, name: packed.name, version: packed.version, files: names,
-    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed alias presets, registration, targeted execution and removal', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
+    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed package version flags', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed alias presets, registration, targeted execution and removal', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
 } finally {
   // Stop only the watcher created with this temporary configuration.
   if (installed) await cli('watch', 'stop');

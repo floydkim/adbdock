@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
 const cli = new URL('../dist/cli.js', import.meta.url);
 
@@ -9,6 +10,20 @@ test('help describes the device and optional Metro commands', () => {
   assert.match(output, /adbdock devices/);
   assert.match(output, /adbdock adb/);
   assert.match(output, /adbdock metro/);
+});
+
+test('version flags report the package version without accessing ADB or configuration', () => {
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const env = { ...process.env, ADBDOCK_ADB: '/missing/adbdock-version-adb', ADBDOCK_HOME: '/missing/adbdock-version-config' };
+  for (const flag of ['--version', '-v']) {
+    const plain = spawnSync(process.execPath, [cli.pathname, flag], { encoding: 'utf8', env });
+    assert.equal(plain.status, 0, plain.stdout);
+    assert.equal(plain.stdout, `${version}\n`);
+    assert.equal(plain.stderr, '');
+    const json = spawnSync(process.execPath, [cli.pathname, flag, '--json'], { encoding: 'utf8', env });
+    assert.equal(json.status, 0, json.stdout);
+    assert.deepEqual(JSON.parse(json.stdout), { schemaVersion: 1, ok: true, data: version, errors: [] });
+  }
 });
 
 test('unknown commands return a JSON argument error', () => {
@@ -52,10 +67,12 @@ test('help for an unknown command fails rather than showing unrelated instructio
   assert.equal(JSON.parse(output.stdout).errors[0].code, 'INVALID_ARGUMENT');
 });
 
-test('help after the ADB separator is forwarded to the selected device', async t => {
+test('help and version flags after the ADB separator are forwarded to the selected device', async t => {
   const { setup } = await import('./helpers.mjs');
   const app = await setup(t);
-  const output = await app.run('adb', '--device', 'usb1', '--json', '--', 'shell', 'example', '--help');
-  assert.equal(output.code, 0, output.stdout);
-  assert.equal((await app.calls()).some(args => args.join(' ') === '-s usb1 shell example --help'), true);
+  for (const flag of ['--help', '--version', '-v']) {
+    const output = await app.run('adb', '--device', 'usb1', '--json', '--', 'shell', 'example', flag);
+    assert.equal(output.code, 0, output.stdout);
+    assert((await app.calls()).some(args => args.join(' ') === `-s usb1 shell example ${flag}`));
+  }
 });

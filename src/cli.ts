@@ -2,6 +2,7 @@
 import { CliError, print, result } from './output.js';
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { devices, remember, resolveDevice, selectDevices } from './devices.js';
 import { isPackageName, isPort, readConfig, saveConfig, withConfig } from './store.js';
 import { runCommands, validateCommand } from './commands.js';
@@ -9,6 +10,7 @@ import { applyBinding, problem, removeBinding, repairBindings } from './link.js'
 import { getCommandAliases, manageCommandAliases } from './command-aliases.js';
 import { runAliasCommands } from './alias-runner.js';
 import { helpFor } from './help.js';
+import { manageInstallation } from './installation.js';
 import { configureAlias } from './alias.js';
 import { pairDevice, pairingServices } from './pair.js';
 import { status } from './status.js';
@@ -46,6 +48,16 @@ async function main() {
     if (parsed.positionals.length) throw new CliError('INVALID_ARGUMENT', 'Version takes no positional arguments.', 2);
     const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     print(result(version), json);
+    return;
+  }
+  if (args[0] === 'upgrade' || args[0] === 'uninstall') {
+    const parsed = options(args.slice(1));
+    if (parsed.positionals.length) throw new CliError('INVALID_ARGUMENT', `${args[0]} takes no positional arguments.`, 2);
+    const data = await manageInstallation(args[0], json);
+    if (args[0] === 'uninstall' && !json) {
+      const configPath = data.configHome.startsWith(`${homedir()}/`) ? `~/${data.configHome.slice(homedir().length + 1)}` : data.configHome;
+      print(result(`adbdock uninstalled. Settings and logs were kept at:\n  ${configPath}\n\nTo permanently delete those settings and logs, run:\n  ${data.cleanupCommand}`), false);
+    } else print(result(data), json);
     return;
   }
   if (args[0] === 'devices') {

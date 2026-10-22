@@ -41,11 +41,16 @@ Or try it without a global installation:
 npx adbdock@latest --help
 ```
 
-To update a global installation to the latest version:
+To update or remove an npm global installation:
 
 ```sh
-npm i -g adbdock@latest
+adbdock upgrade
+adbdock uninstall
 ```
+
+Stop the current watcher with `adbdock watch stop` first if it is running.
+Settings and logs are kept after uninstall. For older versions without these
+commands, use `npm i -g adbdock@latest` or `npm uninstall -g adbdock`.
 
 ## Quick start
 

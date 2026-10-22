@@ -41,11 +41,16 @@ adbdock --help
 npx adbdock@latest --help
 ```
 
-전역 설치한 adbdock을 최신 버전으로 업데이트하려면 다음 명령을 실행합니다.
+npm으로 전역 설치한 CLI를 업데이트하거나 제거하려면:
 
 ```sh
-npm i -g adbdock@latest
+adbdock upgrade
+adbdock uninstall
 ```
+
+현재 watcher가 실행 중이면 먼저 `adbdock watch stop`으로 중지합니다.
+제거 후에도 설정과 로그는 보존합니다. 이 명령이 없는 이전 버전에서는
+`npm i -g adbdock@latest` 또는 `npm uninstall -g adbdock`을 사용합니다.
 
 ## 빠르게 시작하기
 

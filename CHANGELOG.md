@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/floydkim/adbdock/compare/v0.2.0...v0.3.0) (2026-10-22)
+
+
+### Features
+
+* add CLI installation management ([#6](https://github.com/floydkim/adbdock/issues/6)) ([43eb8d4](https://github.com/floydkim/adbdock/commit/43eb8d4de78a9aabd0828c31befb22a8d1c053fe))
+
 ## [0.2.0](https://github.com/floydkim/adbdock/compare/v0.1.1...v0.2.0) (2026-10-21)
 
 

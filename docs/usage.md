@@ -255,6 +255,32 @@ addresses are never guessed.
 Legacy `adb tcpip` connections can be used while connected but are not automatically
 reconnected by this discovery flow.
 
+## Update or uninstall the CLI
+
+```sh
+adbdock upgrade
+adbdock uninstall
+```
+
+These manage only the npm global installation in the current npm prefix.
+`upgrade` installs `adbdock@latest`; `uninstall` removes the CLI. Both support
+`--json`, preserve aliases, Metro settings, saved commands and logs, and leave
+existing reverse rules and agent plugins alone. npm permissions still apply;
+there is no automatic sudo.
+After uninstall, the CLI prints the retained configuration directory and an
+optional command to permanently delete its settings and logs. With `--json`,
+these are returned as `configHome` and `cleanupCommand`.
+
+If a watcher is running for the current configuration, the command stops with an
+error before changing packages. Run `adbdock watch stop` in that configuration,
+then retry. After upgrading, run `adbdock watch start --background` if needed.
+Watchers using other `ADBDOCK_HOME` directories must be stopped separately.
+
+npx runs, local installations, source checkouts and npm development links are
+rejected. Use `npx adbdock@latest` for one-off runs; update source installations
+with the development instructions below. If Node/npm prefixes differ, select the
+Node installation that owns the CLI before running either command.
+
 ## Working with coding agents
 
 See the [README](../README.md#claude-code-and-codex) for plugin installation.
@@ -272,7 +298,8 @@ codex plugin marketplace upgrade adbdock
 ```
 
 Check the installed plugin version in your client and use it in a new session.
-Update the CLI separately with `npm i -g adbdock@latest`.
+Update the globally installed CLI separately with `adbdock upgrade` (or
+`npm i -g adbdock@latest` on older versions).
 
 For parallel tasks, assign device aliases and Metro ports to each task. adbdock
 does not reserve resources. Separate `ADBDOCK_HOME` directories still share the

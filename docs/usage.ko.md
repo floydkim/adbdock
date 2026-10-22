@@ -250,6 +250,30 @@ adbdock metro unbind phone --device-port 8081
 기존 `adb tcpip` 방식도 연결된 상태에서는 사용할 수 있지만, 이 검색 기반의 자동
 재연결 대상은 아닙니다.
 
+## CLI 업데이트와 제거
+
+```sh
+adbdock upgrade
+adbdock uninstall
+```
+
+현재 npm 전역 설치 경로의 adbdock만 관리합니다. `upgrade`는 `adbdock@latest`를
+설치하고, `uninstall`은 CLI를 제거합니다. 두 명령 모두 `--json`을 지원합니다.
+기기 별칭·Metro 설정·저장한 명령·로그, 기존 reverse 규칙과 에이전트 플러그인은
+그대로 둡니다. npm 설치 권한은 필요하며 sudo를 자동으로 실행하지 않습니다.
+제거가 끝나면 보존된 설정 경로와 설정·로그를 영구 삭제하는 명령을 안내합니다.
+필요할 때 직접 실행하면 됩니다. `--json`에서는 `configHome`과 `cleanupCommand`로
+같은 정보를 제공합니다.
+
+현재 설정의 watcher가 실행 중이면 패키지를 변경하기 전에 오류로 중단합니다.
+같은 설정에서 `adbdock watch stop`을 실행한 뒤 다시 시도합니다. 업데이트 후
+필요하면 `adbdock watch start --background`로 watcher를 다시 시작합니다.
+다른 `ADBDOCK_HOME`을 사용하는 watcher는 해당 설정에서 각각 중지해야 합니다.
+
+npx 실행·로컬 설치·소스 체크아웃·npm 개발용 링크에서는 이 명령을 실행할 수 없습니다.
+npx는 `npx adbdock@latest`를 사용하고, 소스 설치는 아래 개발 절차로 업데이트합니다.
+Node/npm의 설치 경로가 다르면 CLI를 설치한 Node 환경을 선택한 뒤 실행합니다.
+
 ## 코딩 에이전트와 사용
 
 플러그인 설치 방법은 [README](../README.ko.md#claude-code와-codex)를 참고하세요.
@@ -267,7 +291,8 @@ codex plugin marketplace upgrade adbdock
 ```
 
 사용 중인 클라이언트에서 설치된 플러그인 버전도 확인하고 새 세션에서 사용하세요.
-CLI 업데이트는 별도로 `npm i -g adbdock@latest`를 실행합니다.
+전역 설치한 CLI는 별도로 `adbdock upgrade`로 업데이트합니다. 이전 버전에서는
+`npm i -g adbdock@latest`를 사용합니다.
 
 병렬 작업에서는 기기 별칭과 Metro 포트를 작업별로 배정하세요. adbdock은 자원을
 예약하지 않으며, `ADBDOCK_HOME`을 분리해도 실제 기기와 reverse 규칙은 공유됩니다.

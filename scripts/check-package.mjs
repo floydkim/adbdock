@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,8 +67,16 @@ try {
   const dryRun = JSON.parse((await exec('npm', ['publish', tarball, '--dry-run', '--ignore-scripts', '--offline', '--cache', path.join(directory, 'publish-cache'), '--json'], { cwd: directory, timeout: 60000 })).stdout);
   assert.equal((dryRun[manifest.name] ?? dryRun).name, manifest.name);
   controller.signal.throwIfAborted();
+  const configBeforeUninstall = await readFile(path.join(env.ADBDOCK_HOME, 'config.json'), 'utf8');
+  const uninstalled = await exec(executable, ['uninstall', '--json'], {
+    env: { ...env, npm_config_prefix: prefix }, cwd: directory, timeout: 60000,
+  });
+  installed = false;
+  assert.equal(JSON.parse(uninstalled.stdout).data.action, 'uninstall');
+  await assert.rejects(access(executable), { code: 'ENOENT' });
+  assert.equal(await readFile(path.join(env.ADBDOCK_HOME, 'config.json'), 'utf8'), configBeforeUninstall);
   console.log(JSON.stringify({ ok: true, name: packed.name, version: packed.version, files: names,
-    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed package version flags', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed alias presets, registration, targeted execution and removal', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published'] }, null, 2));
+    bytes: packed.size, integrity: packed.integrity, checks: ['production-only temporary global install', 'installed package version flags', 'installed help, device query, pairing discovery and QR rendering/timeout', 'installed alias presets, registration, targeted execution and removal', 'installed background watcher start/stop', 'npm exec tarball (npx equivalent)', 'publish dry run; nothing published', 'installed self-uninstall preserves configuration'] }, null, 2));
 } finally {
   // Stop only the watcher created with this temporary configuration.
   if (installed) await cli('watch', 'stop');

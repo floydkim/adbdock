@@ -30,6 +30,12 @@ Commands:
   adbdock status
     Check devices, Metro connections and watcher status.
 
+  adbdock upgrade
+    Update an npm global installation to the latest version.
+
+  adbdock uninstall
+    Remove an npm global installation, keeping settings and logs.
+
 Examples:
   adbdock devices
   adbdock alias
@@ -46,6 +52,39 @@ For options and more examples:
 `;
 
 const details: Record<string, string> = {
+  upgrade: `adbdock upgrade — Update the globally installed CLI
+
+Usage:
+  adbdock upgrade [--json]
+
+Runs npm install --global adbdock@latest in the current npm prefix.
+Only npm global installations are supported; npx, source checkouts and
+npm links are not changed. No automatic sudo is used.
+Stop the watcher for the current configuration first with adbdock watch stop.
+Settings and logs are kept. After upgrading, start the watcher again if needed.
+
+Examples:
+  adbdock upgrade
+  adbdock upgrade --json
+`,
+  uninstall: `adbdock uninstall — Remove the globally installed CLI
+
+Usage:
+  adbdock uninstall [--json]
+
+Runs npm uninstall --global adbdock in the current npm prefix.
+Only npm global installations are supported; npx, source checkouts and
+npm links are not changed. No automatic sudo is used.
+Stop the watcher for the current configuration first with adbdock watch stop.
+Device aliases, Metro mappings, saved commands and logs are kept.
+After removal, a command to permanently delete the current configuration
+directory is shown (cleanupCommand in --json output).
+Existing reverse rules and separately installed agent plugins are kept too.
+
+Examples:
+  adbdock uninstall
+  adbdock uninstall --json
+`,
   devices: `adbdock devices — List ADB devices and connection states
 
 Usage:

@@ -14,6 +14,19 @@ export function getCommandAliases(config: Config): Record<string, string> {
 }
 
 export async function manageCommandAliases(action: string, args: string[], force: boolean) {
+  if (action === 'add-defaults') {
+    if (args.length || force) throw new CliError('INVALID_ARGUMENT', 'Usage: adbdock adb-alias add-defaults [--json].', 2);
+    return withConfig(async config => {
+      const commands = getCommandAliases(config);
+      const added = Object.keys(defaults).filter(name => !Object.hasOwn(commands, name));
+      if (added.length) {
+        for (const name of added) commands[name] = defaults[name]!;
+        config.commandAliases = commands;
+        await saveConfig(config);
+      }
+      return result({ added });
+    });
+  }
   const before = getCommandAliases(await readConfig());
   if (action === 'list' || action === 'interactive') {
     if (args.length || force) throw new CliError('INVALID_ARGUMENT', 'Usage: adbdock adb-alias list [--json].', 2);
@@ -62,7 +75,7 @@ export async function manageCommandAliases(action: string, args: string[], force
     command = await readLine('New command (Enter to keep): ') || before[name];
     if (command === before[name]) return result({ name, command });
   } else if (action !== 'add' || args.length !== 2) {
-    throw new CliError('INVALID_ARGUMENT', 'Use adb-alias add <name> <command>, list, edit <name> or remove <name>.', 2);
+    throw new CliError('INVALID_ARGUMENT', 'Use adb-alias add <name> <command>, list, add-defaults, edit <name> or remove <name>.', 2);
   }
   if (!command?.trim()) throw new CliError('INVALID_ARGUMENT', 'The command cannot be empty.', 2);
   if (exists && !force) {

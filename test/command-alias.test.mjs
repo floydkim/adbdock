@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
 import test from 'node:test';
 import { spawn } from 'node:child_process';
 import { setup, terminal, cliPath } from './helpers.mjs';
@@ -353,4 +353,48 @@ test('excessive command output fails within the documented limit', async t => {
   assert.equal(result.errors[0].code, 'COMMAND_FAILED');
   assert.match(result.errors[0].message, /exceeded 4 MiB/);
   assert(Buffer.byteLength(result.data[0].stdout) <= 4 * 1024 * 1024);
+});
+
+test('add-defaults adds missing presets without overwriting saved commands or other settings', async t => {
+  const app = await setup(t, []);
+  await mkdir(app.env.ADBDOCK_HOME, { recursive: true });
+  const config = { schemaVersion: 1, devices: [{ id: 'phone', serials: ['usb1'], kind: 'usb', alias: 'phone' }],
+    bindings: [{ deviceId: 'phone', devicePort: 8081, metroPort: 8082 }],
+    commandAliases: { menu: 'echo custom menu', custom: 'echo custom' } };
+  await writeFile(`${app.env.ADBDOCK_HOME}/config.json`, JSON.stringify(config));
+  const output = await app.run('adb-alias', 'add-defaults', '--json');
+  assert.equal(output.code, 0, output.stdout);
+  assert.deepEqual(JSON.parse(output.stdout).data.added, ['reverse', 'screenshot']);
+  const saved = JSON.parse(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'));
+  assert.equal(saved.commandAliases.menu, 'echo custom menu');
+  assert.equal(saved.commandAliases.custom, 'echo custom');
+  assert.deepEqual(saved.devices, config.devices);
+  assert.deepEqual(saved.bindings, config.bindings);
+  const before = await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8');
+  assert.deepEqual(JSON.parse((await app.run('adb-alias', 'add-defaults', '--json')).stdout).data.added, []);
+  assert.equal(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'), before);
+  assert.deepEqual(await app.calls(), []);
+});
+
+test('add-defaults restores deleted presets and leaves fresh implicit defaults unchanged', async t => {
+  const app = await setup(t, []);
+  assert.deepEqual(JSON.parse((await app.run('adb-alias', 'add-defaults', '--json')).stdout).data.added, []);
+  assert.equal((await app.run('adb-alias', 'remove', 'screenshot', '--json')).code, 0);
+  const output = await app.run('adb-alias', 'add-defaults', '--json');
+  assert.equal(output.code, 0, output.stdout);
+  assert.deepEqual(JSON.parse(output.stdout).data.added, ['screenshot']);
+  const listed = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
+  assert(listed.some(entry => entry.name === 'screenshot'));
+});
+
+test('add-defaults rejects arguments and force without changing the saved configuration', async t => {
+  const app = await setup(t, []);
+  await app.run('adb-alias', 'add', 'custom', 'echo custom', '--json');
+  const before = await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8');
+  for (const extra of ['size', '--force']) {
+    const output = await app.run('adb-alias', 'add-defaults', extra, '--json');
+    assert.equal(output.code, 2, output.stdout);
+    assert.equal(JSON.parse(output.stdout).errors[0].code, 'INVALID_ARGUMENT');
+  }
+  assert.equal(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'), before);
 });

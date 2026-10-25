@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/floydkim/adbdock/compare/v0.3.0...v0.4.0) (2026-10-25)
+
+
+### Features
+
+* add display command presets ([#9](https://github.com/floydkim/adbdock/issues/9)) ([fd02875](https://github.com/floydkim/adbdock/commit/fd028753681d70853a84cfd85d22fe774864cecd))
+* add missing default command presets ([#8](https://github.com/floydkim/adbdock/issues/8)) ([706f1aa](https://github.com/floydkim/adbdock/commit/706f1aa12a36c4a6c6b8e4451aced70a9e635b4e))
+
 ## [0.3.0](https://github.com/floydkim/adbdock/compare/v0.2.0...v0.3.0) (2026-10-22)
 
 

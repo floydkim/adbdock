@@ -192,6 +192,8 @@ Commands:
     Save a host shell script containing device commands.
   adbdock adb-alias list
     Show names and commands without changing them.
+  adbdock adb-alias add-defaults
+    Add missing built-in commands without replacing saved commands.
   adbdock adb-alias edit
     Edit one command interactively.
   adbdock adb-alias remove
@@ -199,7 +201,7 @@ Commands:
 
 Without a subcommand, choose an alias to edit/delete in a terminal.
 Scripts and --json get a read-only list instead.
-Built-ins: menu, reverse and screenshot. Deleted presets stay deleted.
+Built-ins: menu, reverse and screenshot. Deleted presets stay deleted unless you run add-defaults.
 The table shows shortened previews. Select an entry to read its full script.
 
 Examples:
@@ -250,6 +252,20 @@ Examples:
   adbdock adb-alias list --json
 
 Run adbdock adb-alias without a subcommand to select, edit or delete.
+`,
+  'adb-alias add-defaults': `adbdock adb-alias add-defaults — Add missing built-in commands
+
+Usage:
+  adbdock adb-alias add-defaults [--json]
+
+Adds any missing built-in commands, including presets you previously deleted.
+Existing commands are kept exactly as saved, including customized built-ins.
+Reports added names in added; an empty list means nothing needed adding.
+Does not contact a remote service or run ADB commands.
+
+Examples:
+  adbdock adb-alias add-defaults
+  adbdock adb-alias add-defaults --json
 `,
   'adb-alias edit': `adbdock adb-alias edit — Edit one saved command
 

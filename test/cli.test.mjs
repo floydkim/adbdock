@@ -36,7 +36,7 @@ test('unknown commands return a JSON argument error', () => {
 });
 
 test('command help explains options and notation without accessing devices or config', () => {
-  const commands = ['upgrade', 'uninstall', 'devices', 'alias', 'pair', 'adb', 'adb-alias', 'adb-alias add', 'adb-alias list', 'adb-alias edit', 'adb-alias remove', '@command', 'metro', 'metro bind', 'metro unbind', 'metro repair', 'status', 'watch', 'watch start', 'watch stop', 'watch status'];
+  const commands = ['upgrade', 'uninstall', 'devices', 'alias', 'pair', 'adb', 'adb-alias', 'adb-alias add', 'adb-alias list', 'adb-alias add-defaults', 'adb-alias edit', 'adb-alias remove', '@command', 'metro', 'metro bind', 'metro unbind', 'metro repair', 'status', 'watch', 'watch start', 'watch stop', 'watch status'];
   for (const command of commands) {
     const output = spawnSync(process.execPath, [cli.pathname, ...command.split(' '), '--help', '--json'], {
       encoding: 'utf8', env: { ...process.env, ADBDOCK_ADB: '/missing/adbdock-help-adb', ADBDOCK_HOME: '/missing/adbdock-help-config' },

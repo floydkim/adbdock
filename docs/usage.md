@@ -90,6 +90,15 @@ or device 8081 → host 8081 when none are saved. The example with arguments map
 device 18081 → host 8082 for this run. It does not change saved mappings; a watcher
 reports conflicting rules instead of replacing them.
 
+To add new presets to an existing configuration, run the command below. It adds
+only missing commands and preserves all existing scripts. Previously deleted
+presets are added again too. The output's `added` list contains the names added;
+an empty list means no changes were needed.
+
+```sh
+adbdock adb-alias add-defaults
+```
+
 Save a script using **single quotes** so your terminal does not expand variables
 before registration:
 

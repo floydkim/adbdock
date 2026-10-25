@@ -79,6 +79,13 @@ adbdock @menu -d phone
 adbdock @screenshot -d phone -d emulator
 adbdock @reverse -d phone
 adbdock @reverse -d phone -- 8082 18081
+adbdock @size -d phone
+adbdock @size -d phone -- 1080x1920
+adbdock @density -d phone -- 420
+adbdock @font --all -- 1.2
+adbdock @size -d phone -- reset
+adbdock @density -d phone -- reset
+adbdock @font -d phone -- 1.0
 ```
 
 `menu`는 React Native 개발자 메뉴를 엽니다(keyevent 82). `screenshot`은 현재
@@ -87,6 +94,10 @@ adbdock @reverse -d phone -- 8082 18081
 기기 8081 → 호스트 8081을 사용합니다. 인자를 지정한 예시는 기기 18081 → 호스트
 8082로 한 번만 연결합니다. 저장된 매핑은 바뀌지 않으며, watcher는 충돌하는 규칙을
 덮어쓰지 않고 보고합니다.
+
+`size`·`density`·`font`는 인자가 없으면 현재 화면 크기·밀도·글자 배율을 조회하고,
+`--` 뒤에 값을 지정하면 적용합니다. `size`와 `density`는 `reset`으로 기기 기본값을
+복원합니다. `font`의 `1.0`은 표준 배율을 적용하며 이전 사용자 설정을 복원하는 것은 아닙니다.
 
 기존 설정에 새 기본 명령어를 추가하려면 아래 명령을 실행합니다. 없는 명령만
 추가하고 기존 명령은 수정하지 않습니다. 이전에 삭제한 기본 명령어도 다시 추가됩니다.

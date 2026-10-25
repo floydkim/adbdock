@@ -5,11 +5,11 @@ import { spawn } from 'node:child_process';
 import { setup, terminal, cliPath } from './helpers.mjs';
 const tty = { skip: process.platform !== 'darwin' };
 
-test('command aliases include menu, reverse and screenshot without Metro setup', async t => {
+test('default command aliases are available without Metro setup', async t => {
   const app = await setup(t, []);
   const output = await app.run('adb-alias', 'list', '--json');
   assert.equal(output.code, 0, output.stdout);
-  assert.deepEqual(JSON.parse(output.stdout).data.map(a => a.name), ['menu', 'reverse', 'screenshot']);
+  assert.deepEqual(JSON.parse(output.stdout).data.map(a => a.name), ['menu', 'reverse', 'screenshot', 'size', 'density', 'font']);
   assert.deepEqual(await app.calls(), []);
 });
 
@@ -27,7 +27,7 @@ test('overwrites require confirmation or force and deleted defaults stay deleted
   const overwrite = await app.run('adb-alias', 'add', 'menu', 'echo custom', '--json');
   assert.equal(JSON.parse(overwrite.stdout).errors[0].code, 'ALIAS_EXISTS');
   assert.equal((await app.run('adb-alias', 'add', 'menu', 'echo custom', '--force', '--json')).code, 0);
-  for (const name of ['menu', 'reverse', 'screenshot']) assert.equal((await app.run('adb-alias', 'remove', name, '--json')).code, 0);
+  for (const name of ['menu', 'reverse', 'screenshot', 'size', 'density', 'font']) assert.equal((await app.run('adb-alias', 'remove', name, '--json')).code, 0);
   assert.deepEqual(JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data, []);
 });
 
@@ -81,7 +81,7 @@ test('interactive command editor can remove one chosen alias', tty, async t => {
   const app = await setup(t, []);
   await terminal(app, ['adb-alias'], [['Choose an alias number:', '1\n'], ['[e]dit', 'd\n']]);
   const list = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
-  assert.deepEqual(list.map(a => a.name), ['reverse', 'screenshot']);
+  assert.deepEqual(list.map(a => a.name), ['reverse', 'screenshot', 'size', 'density', 'font']);
 });
 
 test('interactive edits show the old command and save the replacement after confirmation', tty, async t => {
@@ -237,16 +237,16 @@ test('command alias previews fit the terminal while JSON keeps complete scripts'
   const name = 'long'.repeat(16);
   const command = 'echo first line\n' + 'echo 한글 메시지; '.repeat(30);
   await app.run('adb-alias', 'add', name, command, '--json');
+  const listed = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
   for (const columns of [40, 80]) {
     const source = `process.stdout.columns = ${columns}; process.argv = ${JSON.stringify([process.execPath, cliPath, 'adb-alias', 'list'])}; await import(${JSON.stringify(cliPath)});`;
     const output = await promisify(execFile)(process.execPath, ['--input-type=module', '--eval', source], { env: app.env });
     const lines = output.stdout.trimEnd().split('\n');
-    assert.equal(lines.length, 6);
+    assert.equal(lines.length, listed.length + 2);
     const displayWidth = line => [...line].reduce((total, char) => total + (/[가-힣]/u.test(char) ? 2 : 1), 0);
     assert(lines.every(line => displayWidth(line) <= columns), output.stdout);
     assert.match(output.stdout, /…/);
   }
-  const listed = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
   assert.equal(listed.find(entry => entry.name === name).command, command);
 });
 
@@ -282,7 +282,7 @@ test('concurrent command registrations preserve each other and device aliases', 
   assert(outputs.every(output => output.code === 0), JSON.stringify(outputs));
   const config = JSON.parse(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'));
   assert.equal(config.devices[0].alias, 'phone');
-  assert.deepEqual(Object.keys(config.commandAliases).sort(), ['first', 'menu', 'reverse', 'screenshot', 'second']);
+  assert.deepEqual(Object.keys(config.commandAliases).sort(), ['density', 'first', 'font', 'menu', 'reverse', 'screenshot', 'second', 'size']);
 });
 
 test('interactive deletion cannot remove a command changed after selection', tty, async t => {
@@ -364,7 +364,7 @@ test('add-defaults adds missing presets without overwriting saved commands or ot
   await writeFile(`${app.env.ADBDOCK_HOME}/config.json`, JSON.stringify(config));
   const output = await app.run('adb-alias', 'add-defaults', '--json');
   assert.equal(output.code, 0, output.stdout);
-  assert.deepEqual(JSON.parse(output.stdout).data.added, ['reverse', 'screenshot']);
+  assert.deepEqual(JSON.parse(output.stdout).data.added, ['reverse', 'screenshot', 'size', 'density', 'font']);
   const saved = JSON.parse(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'));
   assert.equal(saved.commandAliases.menu, 'echo custom menu');
   assert.equal(saved.commandAliases.custom, 'echo custom');
@@ -397,4 +397,37 @@ test('add-defaults rejects arguments and force without changing the saved config
     assert.equal(JSON.parse(output.stdout).errors[0].code, 'INVALID_ARGUMENT');
   }
   assert.equal(await readFile(`${app.env.ADBDOCK_HOME}/config.json`, 'utf8'), before);
+});
+
+test('display presets query or apply values only on selected devices', async t => {
+  const app = await setup(t);
+  for (const [name, args, expected] of [
+    ['size', [], ['wm', 'size']],
+    ['size', ['1080x1920'], ['wm', 'size', '1080x1920']],
+    ['size', ['reset'], ['wm', 'size', 'reset']],
+    ['density', [], ['wm', 'density']],
+    ['density', ['420'], ['wm', 'density', '420']],
+    ['density', ['reset'], ['wm', 'density', 'reset']],
+    ['font', [], ['settings', 'get', 'system', 'font_scale']],
+    ['font', ['1.2'], ['settings', 'put', 'system', 'font_scale', '1.2']],
+    ['font', ['1.0'], ['settings', 'put', 'system', 'font_scale', '1.0']],
+  ]) {
+    const before = (await app.calls()).length;
+    const output = await app.run(`@${name}`, '-d', 'usb1', '--json', '--', ...args);
+    assert.equal(output.code, 0, output.stdout);
+    const calls = (await app.calls()).slice(before).filter(c => c[2] === 'shell' && ['wm', 'settings'].includes(c[3]));
+    assert.deepEqual(calls, [['-s', 'usb1', 'shell', ...expected]]);
+  }
+});
+
+test('display presets support all devices and preserve existing saved command maps', async t => {
+  const app = await setup(t);
+  const output = await app.run('@font', '--all', '--json', '--', '1.2');
+  assert.equal(output.code, 0, output.stdout);
+  assert.deepEqual((await app.calls()).filter(c => c[3] === 'settings').map(c => c[1]).sort(), ['usb1', 'wifi1']);
+  await mkdir(app.env.ADBDOCK_HOME, { recursive: true });
+  const saved = { schemaVersion: 1, devices: [], bindings: [], commandAliases: { size: 'echo custom' } };
+  await writeFile(`${app.env.ADBDOCK_HOME}/config.json`, JSON.stringify(saved));
+  const listed = JSON.parse((await app.run('adb-alias', 'list', '--json')).stdout).data;
+  assert.deepEqual(listed, [{ name: 'size', command: 'echo custom' }]);
 });

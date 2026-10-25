@@ -46,7 +46,7 @@ try {
   assert.equal((await exec(executable, ['-v'], { env, timeout: 20000 })).stdout, `${manifest.version}\n`);
   assert((await cli('metro', 'bind', '--help')).data.includes('--device-port'));
   assert.deepEqual((await cli('devices')).data, []);
-  assert.deepEqual((await cli('adb-alias', 'list')).data.map(a => a.name), ['menu', 'reverse', 'screenshot']);
+  assert.deepEqual((await cli('adb-alias', 'list')).data.map(a => a.name), ['menu', 'reverse', 'screenshot', 'size', 'density', 'font']);
   assert((await cli('adb-alias', 'remove', 'menu')).ok);
   assert.deepEqual((await cli('adb-alias', 'add-defaults')).data.added, ['menu']);
   assert.deepEqual((await cli('adb-alias', 'add-defaults')).data.added, []);

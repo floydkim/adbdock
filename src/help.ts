@@ -201,7 +201,9 @@ Commands:
 
 Without a subcommand, choose an alias to edit/delete in a terminal.
 Scripts and --json get a read-only list instead.
-Built-ins: menu, reverse and screenshot. Deleted presets stay deleted unless you run add-defaults.
+Built-ins: menu, reverse, screenshot, size, density and font. Deleted presets stay deleted unless you run add-defaults.
+size/density/font query without arguments; pass values after -- to apply them.
+Use reset for size/density, or 1.0 for the standard font scale.
 The table shows shortened previews. Select an entry to read its full script.
 
 Examples:

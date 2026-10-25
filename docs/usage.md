@@ -81,6 +81,13 @@ adbdock @menu -d phone
 adbdock @screenshot -d phone -d emulator
 adbdock @reverse -d phone
 adbdock @reverse -d phone -- 8082 18081
+adbdock @size -d phone
+adbdock @size -d phone -- 1080x1920
+adbdock @density -d phone -- 420
+adbdock @font --all -- 1.2
+adbdock @size -d phone -- reset
+adbdock @density -d phone -- reset
+adbdock @font -d phone -- 1.0
 ```
 
 `menu` opens the React Native developer menu (keyevent 82). `screenshot` saves
@@ -89,6 +96,11 @@ its path. Without arguments, `reverse` applies each device's saved Metro mapping
 or device 8081 → host 8081 when none are saved. The example with arguments maps
 device 18081 → host 8082 for this run. It does not change saved mappings; a watcher
 reports conflicting rules instead of replacing them.
+
+`size`, `density` and `font` query the current screen size, density and font scale
+without arguments, or apply values supplied after `--`. Use `reset` for size and
+density to restore device defaults. Font scale `1.0` applies the standard scale;
+it does not restore a previously customized scale.
 
 To add new presets to an existing configuration, run the command below. It adds
 only missing commands and preserves all existing scripts. Previously deleted
